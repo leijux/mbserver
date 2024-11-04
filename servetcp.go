@@ -18,11 +18,17 @@ func (s *Server) accept(listen net.Listener) error {
 			log.Printf("Unable to accept connections: %#v\n", err)
 			return err
 		}
+		s.wg.Add(1)
 
 		go func(conn net.Conn) {
+			defer s.wg.Done()
 			defer conn.Close()
 
 			for {
+				select {
+				case <-s.closeSignalChan:
+					return
+				default:
 				packet := make([]byte, 512)
 				bytesRead, err := conn.Read(packet)
 				if err != nil {
@@ -43,6 +49,8 @@ func (s *Server) accept(listen net.Listener) error {
 				request := &Request{conn, frame}
 
 				s.requestChan <- request
+				}
+
 			}
 		}(conn)
 	}

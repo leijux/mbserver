@@ -12,12 +12,16 @@ import (
 // Server is a Modbus slave with allocated memory for discrete inputs, coils, etc.
 type Server struct {
 	// Debug enables more verbose messaging.
-	Debug            bool
-	listeners        []net.Listener
-	ports            []serial.Port
-	portsWG          sync.WaitGroup
-	portsCloseChan   chan struct{}
-	requestChan      chan *Request
+	Debug bool
+
+	listeners []net.Listener
+	ports     []serial.Port
+
+	wg              sync.WaitGroup
+	closeSignalChan chan struct{}
+
+	requestChan chan *Request
+
 	function         [256](func(*Server, Framer) ([]byte, *Exception))
 	DiscreteInputs   []byte
 	Coils            []byte
@@ -52,7 +56,7 @@ func NewServer() *Server {
 	s.function[16] = WriteHoldingRegisters
 
 	s.requestChan = make(chan *Request)
-	s.portsCloseChan = make(chan struct{})
+	s.closeSignalChan = make(chan struct{})
 
 	go s.handler()
 
@@ -100,8 +104,8 @@ func (s *Server) Close() {
 		listen.Close()
 	}
 
-	close(s.portsCloseChan)
-	s.portsWG.Wait()
+	close(s.closeSignalChan)
+	s.wg.Wait()
 
 	for _, port := range s.ports {
 		port.Close()
