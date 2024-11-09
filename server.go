@@ -101,16 +101,26 @@ func (s *Server) handler() {
 	}
 }
 
-// Close stops listening to TCP/IP ports and closes serial ports.
-func (s *Server) Close() {
-	for _, listen := range s.listeners {
-		listen.Close()
+// Serve start the service
+func (s *Server) Serve() {
+	for _, listener := range s.listeners {
+		go s.accept(listener)
 	}
-
-	close(s.closeSignalChan)
-	s.wg.Wait()
 
 	for _, port := range s.ports {
-		port.Close()
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			s.acceptSerialRequests(port)
+		}()
 	}
+
+	s.handler()
+}
+
+// Shutdown stops listening to TCP/IP ports and closes serial ports.
+func (s *Server) Shutdown() {
+	close(s.closeSignalChan)
+
+	s.wg.Wait()
 }
