@@ -10,6 +10,10 @@ import (
 
 func (s *Server) accept(listen net.Listener) error {
 	for {
+		select {
+		case <-s.closeSignalChan:
+			return listen.Close()
+		default:
 		conn, err := listen.Accept()
 		if err != nil {
 			if strings.Contains(err.Error(), "use of closed network connection") {
