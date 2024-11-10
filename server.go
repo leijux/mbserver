@@ -37,15 +37,60 @@ type Request struct {
 	frame Framer
 }
 
-// NewServer creates a new Modbus server (slave).
-func NewServer() *Server {
-	s := &Server{}
+// OptionFunc is a function type used to configure options for the Server.
+type OptionFunc func(s *Server)
 
-	// Allocate Modbus memory maps.
-	s.DiscreteInputs = make([]byte, 65536)
-	s.Coils = make([]byte, 65536)
-	s.HoldingRegisters = make([]uint16, 65536)
-	s.InputRegisters = make([]uint16, 65536)
+// WithLogger sets the logger for the Server.
+// Parameter l is a pointer to an *slog.Logger instance to be used for logging.
+func WithLogger(l *slog.Logger) OptionFunc {
+	return func(s *Server) {
+		s.l = l
+	}
+}
+
+// WithDiscreteInputs sets the DiscreteInputs data for the Server.
+// Parameter data is a byte slice containing the discrete input data to set.
+func WithDiscreteInputs(data []byte) OptionFunc {
+	return func(s *Server) {
+		s.DiscreteInputs = data
+	}
+}
+
+// WithCoils sets the Coils data for the Server.
+// Parameter data is a byte slice containing the coil data to set.
+func WithCoils(data []byte) OptionFunc {
+	return func(s *Server) {
+		s.Coils = data
+	}
+}
+
+// WithHoldingRegisters sets the HoldingRegisters data for the Server.
+// Parameter data is a byte slice containing the holding register data to set.
+func WithHoldingRegisters(data []uint16) OptionFunc {
+	return func(s *Server) {
+		s.HoldingRegisters = data
+	}
+}
+
+// WithInputRegisters sets the InputRegisters data for the Server.
+// Parameter data is a byte slice containing the input register data to set.
+func WithInputRegisters(data []uint16) OptionFunc {
+	return func(s *Server) {
+		s.InputRegisters = data
+	}
+}
+
+// WithRegisterFunction registers a custom function handler for a specific function code.
+// Parameter funcCode is the function code, and function is the custom handler for that code.
+func WithRegisterFunction(funcCode uint8, function function) OptionFunc {
+	return func(s *Server) {
+		s.registerFunctionHandler(funcCode, function)
+	}
+}
+
+// NewServer creates a new Modbus server (slave).
+func NewServer(opts ...OptionFunc) *Server {
+	s := &Server{}
 
 	// Add default functions.
 	s.function[1] = ReadCoils
@@ -57,6 +102,32 @@ func NewServer() *Server {
 	s.function[15] = WriteMultipleCoils
 	s.function[16] = WriteHoldingRegisters
 
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	// default slog.Logger
+	if s.l == nil {
+		s.l = slog.Default()
+	}
+
+	// Allocate Modbus memory maps.
+	if s.DiscreteInputs == nil {
+		s.DiscreteInputs = make([]byte, 65536)
+	}
+
+	if s.Coils == nil {
+		s.Coils = make([]byte, 65536)
+	}
+
+	if s.HoldingRegisters == nil {
+		s.HoldingRegisters = make([]uint16, 65536)
+	}
+
+	if s.InputRegisters == nil {
+		s.InputRegisters = make([]uint16, 65536)
+	}
+
 	s.requestChan = make(chan *Request)
 	s.closeSignalChan = make(chan struct{})
 
@@ -65,8 +136,8 @@ func NewServer() *Server {
 	return s
 }
 
-// RegisterFunctionHandler override the default behavior for a given Modbus function.
-func (s *Server) RegisterFunctionHandler(funcCode uint8, function func(*Server, Framer) ([]byte, *Exception)) {
+// registerFunctionHandler override the default behavior for a given Modbus function.
+func (s *Server) registerFunctionHandler(funcCode uint8, function function) {
 	s.function[funcCode] = function
 }
 
