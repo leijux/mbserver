@@ -31,7 +31,7 @@ var (
 )
 
 func (e Exception) Error() string {
-	return fmt.Sprintf("%d", e)
+	return strconv.Itoa(int(e))
 }
 
 func (e Exception) String() string {
