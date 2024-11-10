@@ -2,7 +2,7 @@ package mbserver
 
 import (
 	"encoding/binary"
-	"fmt"
+	"errors"
 )
 
 // TCPFrame is the Modbus TCP frame.
@@ -19,7 +19,7 @@ type TCPFrame struct {
 func NewTCPFrame(packet []byte) (*TCPFrame, error) {
 	// Check if the packet is too short.
 	if len(packet) < 9 {
-		return nil, fmt.Errorf("TCP Frame error: packet less than 9 bytes")
+		return nil, errors.New("TCP Frame error: packet less than 9 bytes")
 	}
 
 	frame := &TCPFrame{
@@ -33,7 +33,7 @@ func NewTCPFrame(packet []byte) (*TCPFrame, error) {
 
 	// Check expected vs actual packet length.
 	if int(frame.Length) != len(frame.Data)+2 {
-		return nil, fmt.Errorf("specified packet length does not match actual packet length")
+		return nil, errors.New("specified packet length does not match actual packet length")
 	}
 
 	return frame, nil
