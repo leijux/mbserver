@@ -3,7 +3,6 @@ package mbserver
 import (
 	"crypto/tls"
 	"io"
-	"log"
 	"net"
 	"strings"
 )
@@ -19,7 +18,7 @@ func (s *Server) accept(listen net.Listener) error {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				return nil
 			}
-			log.Printf("Unable to accept connections: %#v\n", err)
+				s.l.Error("Unable to accept connections", "err", err)
 			return err
 		}
 		s.wg.Add(1)
@@ -37,7 +36,7 @@ func (s *Server) accept(listen net.Listener) error {
 				bytesRead, err := conn.Read(packet)
 				if err != nil {
 					if err != io.EOF {
-						log.Printf("read error %v\n", err)
+								s.l.Error("read eroor", "err", err)
 					}
 					return
 				}
@@ -46,7 +45,7 @@ func (s *Server) accept(listen net.Listener) error {
 
 				frame, err := NewTCPFrame(packet)
 				if err != nil {
-					log.Printf("bad packet error %v\n", err)
+							s.l.Error("bad packet error", "err", err)
 					return
 				}
 
@@ -64,7 +63,7 @@ func (s *Server) accept(listen net.Listener) error {
 func (s *Server) ListenTCP(addressPort string) (err error) {
 	listen, err := net.Listen("tcp", addressPort)
 	if err != nil {
-		log.Printf("Failed to Listen: %v\n", err)
+		s.l.Error("failed to listen", "err", err)
 		return err
 	}
 	s.listeners = append(s.listeners, listen)
@@ -76,7 +75,7 @@ func (s *Server) ListenTCP(addressPort string) (err error) {
 func (s *Server) ListenTLS(addressPort string, config *tls.Config) (err error) {
 	listen, err := tls.Listen("tcp", addressPort, config)
 	if err != nil {
-		log.Printf("Failed to Listen on TLS: %v\n", err)
+		s.l.Error("failed to listen on TLS", "err", err)
 		return err
 	}
 	s.listeners = append(s.listeners, listen)

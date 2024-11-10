@@ -2,7 +2,6 @@ package mbserver
 
 import (
 	"io"
-	"log"
 
 	"github.com/goburrow/serial"
 )
@@ -12,7 +11,7 @@ import (
 func (s *Server) ListenRTU(serialConfig *serial.Config) (err error) {
 	port, err := serial.Open(serialConfig)
 	if err != nil {
-		log.Fatalf("failed to open %s: %v\n", serialConfig.Address, err)
+		s.l.Error("failed to open", "address", serialConfig.Address, "err", err)
 	}
 	s.ports = append(s.ports, port)
 
@@ -39,7 +38,7 @@ SkipFrameError:
 		bytesRead, err := port.Read(buffer)
 		if err != nil {
 			if err != io.EOF {
-				log.Printf("serial read error %v\n", err)
+					s.l.Error("serial read Error", "err", err)
 			}
 			return
 		}
@@ -51,10 +50,10 @@ SkipFrameError:
 
 			frame, err := NewRTUFrame(packet)
 			if err != nil {
-				log.Printf("bad serial frame error %v\n", err)
+					s.l.Error("bad serial frame error", "err", err)
 				//The next line prevents RTU server from exiting when it receives a bad frame. Simply discard the erroneous
 				//frame and wait for next frame by jumping back to the beginning of the 'for' loop.
-				log.Printf("Keep the RTU server running!!\n")
+					s.l.Warn("Keep the RTU server running!!")
 				continue SkipFrameError
 				//return
 			}

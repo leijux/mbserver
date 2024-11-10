@@ -3,6 +3,7 @@ package mbserver
 
 import (
 	"io"
+	"log/slog"
 	"net"
 	"sync"
 
@@ -21,6 +22,7 @@ type Server struct {
 	closeSignalChan chan struct{}
 
 	requestChan chan *Request
+	l           *slog.Logger
 
 	function         [256](func(*Server, Framer) ([]byte, *Exception))
 	DiscreteInputs   []byte
