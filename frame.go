@@ -21,6 +21,11 @@ func GetException(frame Framer) (exception Exception) {
 	return exception
 }
 
+// RegisterAddressAndNumber from Frame to register address and number
+func RegisterAddressAndNumber(frame Framer) (register int, numRegs int, endRegister int) {
+	return registerAddressAndNumber(frame)
+}
+
 func registerAddressAndNumber(frame Framer) (register int, numRegs int, endRegister int) {
 	data := frame.GetData()
 	register = int(binary.BigEndian.Uint16(data[0:2]))
