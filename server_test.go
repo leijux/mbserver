@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/goburrow/modbus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAduRegisterAndNumber(t *testing.T) {
@@ -13,9 +15,7 @@ func TestAduRegisterAndNumber(t *testing.T) {
 
 	expect := []byte{0, 0, 0, 64}
 	got := frame.Data
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v", expect, got)
-	}
+	assert.Equal(t, expect, got)
 }
 
 func TestAduSetDataWithRegisterAndNumberAndValues(t *testing.T) {
@@ -24,9 +24,7 @@ func TestAduSetDataWithRegisterAndNumberAndValues(t *testing.T) {
 
 	expect := []byte{0, 7, 0, 2, 4, 0, 3, 0, 4}
 	got := frame.Data
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v", expect, got)
-	}
+	assert.Equal(t, expect, got)
 }
 
 func TestUnsupportedFunction(t *testing.T) {
@@ -38,19 +36,17 @@ func TestUnsupportedFunction(t *testing.T) {
 	req.frame = &frame
 	response := s.handle(&req)
 	exception := GetException(response)
-	if exception != IllegalFunction {
-		t.Errorf("expected IllegalFunction (%d), got (%v)", IllegalFunction, exception)
-	}
+
+	assert.Equalf(t, exception, IllegalFunction, "expected IllegalFunction (%d), got (%v)", IllegalFunction, exception)
 }
 
 func TestModbus(t *testing.T) {
 	// Server
 	s := NewServer()
 	err := s.ListenTCP("127.0.0.1:3333")
-	if err != nil {
-		t.Fatalf("failed to listen, got %v\n", err)
-	}
-	defer s.Close()
+	require.NoError(t, err)
+	t.Cleanup(s.Shutdown)
+	go s.Serve()
 
 	// Allow the server to start and to avoid a connection refused on the client
 	time.Sleep(1 * time.Millisecond)
@@ -59,80 +55,63 @@ func TestModbus(t *testing.T) {
 	handler := modbus.NewTCPClientHandler("127.0.0.1:3333")
 	// Connect manually so that multiple requests are handled in one connection session
 	err = handler.Connect()
-	if err != nil {
-		t.Errorf("failed to connect, got %v\n", err)
-		t.FailNow()
-	}
-	defer handler.Close()
+	require.NoError(t, err)
+
+	t.Cleanup(func() { handler.Close() })
+
 	client := modbus.NewClient(handler)
 
-	// Coils
-	results, err := client.WriteMultipleCoils(100, 9, []byte{255, 1})
-	if err != nil {
-		t.Errorf("expected nil, got %v\n", err)
-		t.FailNow()
-	}
+	t.Run("Coils", func(t *testing.T) {
+		results, err := client.WriteMultipleCoils(100, 9, []byte{255, 1})
+		require.NoError(t, err)
 
-	results, err = client.ReadCoils(100, 16)
-	if err != nil {
-		t.Errorf("expected nil, got %v\n", err)
-		t.FailNow()
-	}
-	expect := []byte{255, 1}
-	got := results
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v", expect, got)
-	}
+		results, err = client.ReadCoils(100, 16)
+		require.NoError(t, err)
+
+		expect := []byte{255, 1}
+		got := results
+		assert.Equal(t, expect, got)
+	})
 
 	// Discrete inputs
-	results, err = client.ReadDiscreteInputs(0, 64)
-	if err != nil {
-		t.Errorf("expected nil, got %v\n", err)
-		t.FailNow()
-	}
-	// test: 2017/05/14 21:09:53 modbus: sending 00 01 00 00 00 06 ff 02 00 00 00 40
-	// test: 2017/05/14 21:09:53 modbus: received 00 01 00 00 00 0b ff 02 08 00 00 00 00 00 00 00 00
-	expect = []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	got = results
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v", expect, got)
-	}
+	t.Run("Discrete inputs", func(t *testing.T) {
+		results, err := client.ReadDiscreteInputs(0, 64)
+		require.NoError(t, err)
 
-	// Holding registers
-	results, err = client.WriteMultipleRegisters(1, 2, []byte{0, 3, 0, 4})
-	if err != nil {
-		t.Errorf("expected nil, got %v\n", err)
-		t.FailNow()
-	}
-	// received: 00 01 00 00 00 06 ff 10 00 01 00 02
-	expect = []byte{0, 2}
-	got = results
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v", expect, got)
-	}
+		// test: 2017/05/14 21:09:53 modbus: sending 00 01 00 00 00 06 ff 02 00 00 00 40
+		// test: 2017/05/14 21:09:53 modbus: received 00 01 00 00 00 0b ff 02 08 00 00 00 00 00 00 00 00
+		expect := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+		got := results
+		assert.Equal(t, expect, got)
+	})
 
-	results, err = client.ReadHoldingRegisters(1, 2)
-	if err != nil {
-		t.Errorf("expected nil, got %v\n", err)
-		t.FailNow()
-	}
-	expect = []byte{0, 3, 0, 4}
-	got = results
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v", expect, got)
-	}
+	t.Run("Holding registers", func(t *testing.T) {
+		// Holding registers
+		results, err := client.WriteMultipleRegisters(1, 2, []byte{0, 3, 0, 4})
+		require.NoError(t, err)
 
-	// Input registers
-	s.InputRegisters[65530] = 1
-	s.InputRegisters[65535] = 65535
-	results, err = client.ReadInputRegisters(65530, 6)
-	if err != nil {
-		t.Errorf("expected nil, got %v\n", err)
-		t.FailNow()
-	}
-	expect = []byte{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255}
-	got = results
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v", expect, got)
-	}
+		// received: 00 01 00 00 00 06 ff 10 00 01 00 02
+		expect := []byte{0, 2}
+		got := results
+		assert.Equal(t, expect, got)
+
+		results, err = client.ReadHoldingRegisters(1, 2)
+		require.NoError(t, err)
+
+		expect = []byte{0, 3, 0, 4}
+		got = results
+		assert.Equal(t, expect, got)
+	})
+
+	t.Run("Input registers", func(t *testing.T) {
+		// Input registers
+		s.InputRegisters[65530] = 1
+		s.InputRegisters[65535] = 65535
+		results, err := client.ReadInputRegisters(65530, 6)
+		require.NoError(t, err)
+
+		expect := []byte{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255}
+		got := results
+		assert.Equal(t, expect, got)
+	})
 }

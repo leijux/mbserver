@@ -13,49 +13,50 @@ func (s *Server) accept(listen net.Listener) error {
 		case <-s.closeSignalChan:
 			return listen.Close()
 		default:
-		conn, err := listen.Accept()
-		if err != nil {
-			if strings.Contains(err.Error(), "use of closed network connection") {
-				return nil
-			}
+			conn, err := listen.Accept()
+			if err != nil {
+				if strings.Contains(err.Error(), "use of closed network connection") {
+					return nil
+				}
 				s.l.Error("Unable to accept connections", "err", err)
-			return err
-		}
-		s.wg.Add(1)
-
-		go func(conn net.Conn) {
-			defer s.wg.Done()
-			defer conn.Close()
-
-			for {
-				select {
-				case <-s.closeSignalChan:
-					return
-				default:
-				packet := make([]byte, 512)
-				bytesRead, err := conn.Read(packet)
-				if err != nil {
-					if err != io.EOF {
-								s.l.Error("read eroor", "err", err)
-					}
-					return
-				}
-				// Set the length of the packet to the number of read bytes.
-				packet = packet[:bytesRead]
-
-				frame, err := NewTCPFrame(packet)
-				if err != nil {
-							s.l.Error("bad packet error", "err", err)
-					return
-				}
-
-				request := &Request{conn, frame}
-
-				s.requestChan <- request
-				}
-
+				return err
 			}
-		}(conn)
+			s.wg.Add(1)
+
+			go func(conn net.Conn) {
+				defer s.wg.Done()
+				defer conn.Close()
+
+				for {
+					select {
+					case <-s.closeSignalChan:
+						return
+					default:
+						packet := make([]byte, 512)
+						bytesRead, err := conn.Read(packet)
+						if err != nil {
+							if err != io.EOF {
+								s.l.Error("read eroor", "err", err)
+							}
+							return
+						}
+						// Set the length of the packet to the number of read bytes.
+						packet = packet[:bytesRead]
+
+						frame, err := NewTCPFrame(packet)
+						if err != nil {
+							s.l.Error("bad packet error", "err", err)
+							return
+						}
+
+						request := &Request{conn, frame}
+
+						s.requestChan <- request
+					}
+				}
+			}(conn)
+		}
+
 	}
 }
 
@@ -67,7 +68,6 @@ func (s *Server) ListenTCP(addressPort string) (err error) {
 		return err
 	}
 	s.listeners = append(s.listeners, listen)
-	go s.accept(listen)
 	return err
 }
 
@@ -79,6 +79,5 @@ func (s *Server) ListenTLS(addressPort string, config *tls.Config) (err error) {
 		return err
 	}
 	s.listeners = append(s.listeners, listen)
-	go s.accept(listen)
 	return err
 }

@@ -2,7 +2,11 @@ package mbserver
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func isEqual(a interface{}, b interface{}) bool {
@@ -43,9 +47,8 @@ func TestReadCoils(t *testing.T) {
 	// 2 bytes, 0b1000011, 0b00000001
 	expect := []byte{2, 131, 1}
 	got := response.GetData()
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v", expect, got)
-	}
+
+	assert.Equal(t, expect, got)
 }
 
 // Function 2
@@ -76,9 +79,8 @@ func TestReadDiscreteInputs(t *testing.T) {
 	}
 	expect := []byte{2, 129, 3}
 	got := response.GetData()
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v", expect, got)
-	}
+
+	assert.Equal(t, expect, got)
 }
 
 // Function 3
@@ -106,9 +108,7 @@ func TestReadHoldingRegisters(t *testing.T) {
 	}
 	expect := []byte{6, 0, 1, 0, 2, 255, 255}
 	got := response.GetData()
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v", expect, got)
-	}
+	assert.Equal(t, expect, got)
 }
 
 // Function 4
@@ -136,9 +136,7 @@ func TestReadInputRegisters(t *testing.T) {
 	}
 	expect := []byte{6, 0, 1, 0, 2, 255, 255}
 	got := response.GetData()
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v", expect, got)
-	}
+	assert.Equal(t, expect, got)
 }
 
 // Function 5
@@ -157,15 +155,11 @@ func TestWriteSingleCoil(t *testing.T) {
 	req.frame = &frame
 	response := s.handle(&req)
 	exception := GetException(response)
-	if exception != Success {
-		t.Errorf("expected Success, got %v", exception.String())
-		t.FailNow()
-	}
-	expect := 1
+	require.Equalf(t, exception, Success, "expected Success, got %v", exception.String())
+
+	expect := uint8(1)
 	got := s.Coils[65535]
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v\n", expect, got)
-	}
+	assert.Equal(t, expect, got)
 }
 
 // Function 6
@@ -184,15 +178,11 @@ func TestWriteHoldingRegister(t *testing.T) {
 	req.frame = &frame
 	response := s.handle(&req)
 	exception := GetException(response)
-	if exception != Success {
-		t.Errorf("expected Success, got %v", exception.String())
-		t.FailNow()
-	}
-	expect := 6
+	require.Equalf(t, exception, Success, "expected Success, got %v", exception.String())
+
+	expect := uint16(6)
 	got := s.HoldingRegisters[5]
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v\n", expect, got)
-	}
+	assert.Equal(t, expect, got)
 }
 
 // Function 15
@@ -217,9 +207,7 @@ func TestWriteMultipleCoils(t *testing.T) {
 	}
 	expect := []byte{1, 1}
 	got := s.Coils[1:3]
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v\n", expect, got)
-	}
+	assert.Equal(t, expect, got)
 }
 
 // Function 16
@@ -244,27 +232,21 @@ func TestWriteHoldingRegisters(t *testing.T) {
 	}
 	expect := []uint16{3, 4}
 	got := s.HoldingRegisters[1:3]
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v\n", expect, got)
-	}
+	assert.Equal(t, expect, got)
 }
 
 func TestBytesToUint16(t *testing.T) {
 	bytes := []byte{1, 2, 3, 4}
 	got := BytesToUint16(bytes)
 	expect := []uint16{258, 772}
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v\n", expect, got)
-	}
+	assert.Equal(t, expect, got)
 }
 
 func TestUint16ToBytes(t *testing.T) {
 	values := []uint16{1, 2, 3}
 	got := Uint16ToBytes(values)
 	expect := []byte{0, 1, 0, 2, 0, 3}
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v\n", expect, got)
-	}
+	assert.Equal(t, expect, got)
 }
 
 func TestOutOfBounds(t *testing.T) {
@@ -285,14 +267,14 @@ func TestOutOfBounds(t *testing.T) {
 	frame.Function = 1
 	response := s.handle(&req)
 	exception := GetException(response)
-	if exception != IllegalDataAddress {
+	if !errors.Is(exception, IllegalDataAddress) {
 		t.Errorf("expected IllegalDataAddress, got %v", exception.String())
 	}
 
 	frame.Function = 2
 	response = s.handle(&req)
 	exception = GetException(response)
-	if exception != IllegalDataAddress {
+	if !errors.Is(exception, IllegalDataAddress) {
 		t.Errorf("expected IllegalDataAddress, got %v", exception.String())
 	}
 
@@ -300,7 +282,7 @@ func TestOutOfBounds(t *testing.T) {
 	frame.Function = 15
 	response = s.handle(&req)
 	exception = GetException(response)
-	if exception != IllegalDataAddress {
+	if !errors.Is(exception, IllegalDataAddress) {
 		t.Errorf("expected IllegalDataAddress, got %v", exception.String())
 	}
 
@@ -310,14 +292,14 @@ func TestOutOfBounds(t *testing.T) {
 	frame.Function = 3
 	response = s.handle(&req)
 	exception = GetException(response)
-	if exception != IllegalDataAddress {
+	if !errors.Is(exception, IllegalDataAddress) {
 		t.Errorf("expected IllegalDataAddress, got %v", exception.String())
 	}
 
 	frame.Function = 4
 	response = s.handle(&req)
 	exception = GetException(response)
-	if exception != IllegalDataAddress {
+	if !errors.Is(exception, IllegalDataAddress) {
 		t.Errorf("expected IllegalDataAddress, got %v", exception.String())
 	}
 
@@ -325,7 +307,7 @@ func TestOutOfBounds(t *testing.T) {
 	frame.Function = 16
 	response = s.handle(&req)
 	exception = GetException(response)
-	if exception != IllegalDataAddress {
+	if !errors.Is(exception, IllegalDataAddress) {
 		t.Errorf("expected IllegalDataAddress, got %v", exception.String())
 	}
 }

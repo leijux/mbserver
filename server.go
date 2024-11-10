@@ -24,7 +24,7 @@ type Server struct {
 	requestChan chan *Request
 	l           *slog.Logger
 
-	function         [256](func(*Server, Framer) ([]byte, *Exception))
+	function         [256]function
 	DiscreteInputs   []byte
 	Coils            []byte
 	HoldingRegisters []uint16
@@ -131,8 +131,6 @@ func NewServer(opts ...OptionFunc) *Server {
 	s.requestChan = make(chan *Request)
 	s.closeSignalChan = make(chan struct{})
 
-	go s.handler()
-
 	return s
 }
 
@@ -147,15 +145,15 @@ func (s *Server) handle(request *Request) Framer {
 
 	response := request.frame.Copy()
 
-	function := request.frame.GetFunction()
-	if s.function[function] != nil {
-		data, exception = s.function[function](s, request.frame)
+	funcCode := request.frame.GetFunction()
+	if s.function[funcCode] != nil {
+		data, exception = s.function[funcCode](s, request.frame)
 		response.SetData(data)
 	} else {
 		exception = &IllegalFunction
 	}
 
-	if exception != &Success {
+	if *exception == Success {
 		response.SetException(exception)
 	}
 
@@ -169,8 +167,9 @@ func (s *Server) handler() {
 		case <-s.closeSignalChan:
 			return
 		case request := <-s.requestChan:
-		response := s.handle(request)
-		request.conn.Write(response.Bytes())
+			response := s.handle(request)
+			request.conn.Write(response.Bytes())
+		}
 	}
 }
 

@@ -53,7 +53,7 @@ func serverClientSetup() *serverClient {
 
 func (setup *serverClient) Close() {
 	setup.clientTCPHandler.Close()
-	setup.slave.Close()
+	setup.slave.Shutdown()
 }
 
 func BenchmarkModbusWrite1968MultipleCoils(b *testing.B) {
@@ -145,7 +145,8 @@ func Example() {
 		log.Printf("%v\n", err)
 		return
 	}
-	defer serv.Close()
+	defer serv.Shutdown()
+	go serv.Serve()
 
 	// Wait for the server to start
 	time.Sleep(1 * time.Millisecond)
@@ -179,29 +180,27 @@ func Example() {
 
 // Override the default ReadDiscreteInputs funtion.
 func ExampleServer_RegisterFunctionHandler() {
-	serv := NewServer()
-
 	// Override ReadDiscreteInputs function.
-	serv.RegisterFunctionHandler(2,
-		func(s *Server, frame Framer) ([]byte, *Exception) {
-			register, numRegs, endRegister := registerAddressAndNumber(frame)
-			// Check the request is within the allocated memory
-			if endRegister > 65535 {
-				return []byte{}, &IllegalDataAddress
-			}
-			dataSize := numRegs / 8
-			if (numRegs % 8) != 0 {
-				dataSize++
-			}
-			data := make([]byte, 1+dataSize)
-			data[0] = byte(dataSize)
-			for i := range s.DiscreteInputs[register:endRegister] {
-				// Return all 1s, regardless of the value in the DiscreteInputs array.
-				shift := uint(i) % 8
-				data[1+i/8] |= byte(1 << shift)
-			}
-			return data, &Success
-		})
+	wf := WithRegisterFunction(2, func(s *Server, frame Framer) ([]byte, *Exception) {
+		register, numRegs, endRegister := registerAddressAndNumber(frame)
+		// Check the request is within the allocated memory
+		if endRegister > 65535 {
+			return []byte{}, &IllegalDataAddress
+		}
+		dataSize := numRegs / 8
+		if (numRegs % 8) != 0 {
+			dataSize++
+		}
+		data := make([]byte, 1+dataSize)
+		data[0] = byte(dataSize)
+		for i := range s.DiscreteInputs[register:endRegister] {
+			// Return all 1s, regardless of the value in the DiscreteInputs array.
+			shift := uint(i) % 8
+			data[1+i/8] |= byte(1 << shift)
+		}
+		return data, &Success
+	})
+	serv := NewServer(wf)
 
 	// Start the server.
 	err := serv.ListenTCP("localhost:4321")
@@ -209,7 +208,8 @@ func ExampleServer_RegisterFunctionHandler() {
 		log.Printf("%v\n", err)
 		return
 	}
-	defer serv.Close()
+	defer serv.Shutdown()
+	go serv.Serve()
 
 	// Wait for the server to start
 	time.Sleep(1 * time.Millisecond)
