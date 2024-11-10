@@ -8,12 +8,14 @@
 The Golang Modbus Server (Slave) responds to the following Modbus function requests:
 
 Bit access:
+
 - Read Discrete Inputs
 - Read Coils
 - Write Single Coil
 - Write Multiple Coils
 
 16-bit acess:
+
 - Read Input Registers
 - Read Multiple Holding Registers
 - Write Single Holding Register
@@ -22,7 +24,7 @@ Bit access:
 TCP and serial RTU access is supported.
 
 The server internally allocates memory for 65536 coils, 65536 discrete inputs, 653356 holding registers and 65536 input registers.
-On start, all values are initialzied to zero.  Modbus requests are processed in the order they are received and will not overlap/interfere with each other.
+On start, all values are initialzied to zero. Modbus requests are processed in the order they are received and will not overlap/interfere with each other.
 
 The golang [mbserver documentation](https://godoc.org/github.com/tbrandon/mbserver).
 
@@ -34,31 +36,37 @@ Create a Modbus TCP Server (Slave):
 package main
 
 import (
-	"log"
-	"time"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/tbrandon/mbserver"
+	"github.com/leijux/mbserver"
 )
 
 func main() {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
 	serv := mbserver.NewServer()
 	err := serv.ListenTCP("127.0.0.1:1502")
 	if err != nil {
-		log.Printf("%v\n", err)
+		slog.Error("listen tcp err", "err", err)
 	}
-	defer serv.Close()
+	defer serv.Shutdown()
+	go serv.Serve()
 
-	// Wait forever
-	for {
-		time.Sleep(1 * time.Second)
-	}
+	// wait ctrl+c
+	<-sigs
 }
 ```
+
 The server will continue to listen until killed (&lt;ctrl>-c).
 Modbus typically uses port 502 (standard users require special permissions to listen on port 502). Change the port number as required.
 Change the address to 0.0.0.0 to listen on all network interfaces.
 
 An example of a client writing and reading holding regsiters:
+
 ```go
 package main
 
@@ -98,18 +106,18 @@ In the following example, the Modbus server will be configured to listen on
 127.0.0.1:1502, 0.0.0.0:3502, /dev/ttyUSB0 and /dev/ttyACM0
 
 ```go
-	serv := mbserver.NewServer()
-	err := serv.ListenTCP("127.0.0.1:1502")
+	s := mbserver.NewServer()
+	err := s.ListenTCP("127.0.0.1:1502")
 	if err != nil {
-		log.Printf("%v\n", err)
+		slog.Error("listen tcp err", "err", err)
 	}
 
-	err := serv.ListenTCP("0.0.0.0:3502")
+	err = s.ListenTCP("0.0.0.0:3502")
 	if err != nil {
-		log.Printf("%v\n", err)
+		slog.Error("listen tcp err", "err", err)
 	}
 
-	err := s.ListenRTU(&serial.Config{
+	err = s.ListenRTU(&serial.Config{
 		Address:  "/dev/ttyUSB0",
 		BaudRate: 115200,
 		DataBits: 8,
@@ -117,10 +125,11 @@ In the following example, the Modbus server will be configured to listen on
 		Parity:   "N",
 		Timeout:  10 * time.Second})
 	if err != nil {
-		t.Fatalf("failed to listen, got %v\n", err)
+		slog.Error("failed to listen", "err", err)
+		os.Exit(1)
 	}
 
-	err := s.ListenRTU(&serial.Config{
+	err = s.ListenRTU(&serial.Config{
 		Address:  "/dev/ttyACM0",
 		BaudRate: 9600,
 		DataBits: 8,
@@ -128,28 +137,32 @@ In the following example, the Modbus server will be configured to listen on
 		Parity:   "N",
 		Timeout:  10 * time.Second,
 		RS485: serial.RS485Config{
-			Enabled: true,
-			DelayRtsBeforeSend: 2 * time.Millisecond
-			DelayRtsAfterSend: 3 * time.Millisecond
-			RtsHighDuringSend: false,
-			RtsHighAfterSend: false,
-			RxDuringTx: false
-			})
+			Enabled:            true,
+			DelayRtsBeforeSend: 2 * time.Millisecond,
+			DelayRtsAfterSend:  3 * time.Millisecond,
+			RtsHighDuringSend:  false,
+			RtsHighAfterSend:   false,
+			RxDuringTx:         false,
+		}})
 	if err != nil {
-		t.Fatalf("failed to listen, got %v\n", err)
+		slog.Error("failed to listen", "err", err)
+		os.Exit(1)
 	}
 
-	defer serv.Close()
+	defer s.Shutdown()
+
+	s.Serve()
 ```
 
 Information on [serial port settings](https://godoc.org/github.com/goburrow/serial).
 
 ## Server Customization
 
- RegisterFunctionHandler allows the default server functionality to be overridden for a Modbus function code.
- ```go
+RegisterFunctionHandler allows the default server functionality to be overridden for a Modbus function code.
+
+```go
 func (s *Server) RegisterFunctionHandler(funcCode uint8, function func(*Server, Framer) ([]byte, *Exception))
- ```
+```
 
 Example of overriding the default ReadDiscreteInputs funtion:
 
@@ -208,16 +221,19 @@ if err != nil {
 
 fmt.Printf("results %v\n", results)
 ```
+
 Output:
+
 ```go
 results [255 255]
 ```
 
 ## Benchmarks
 
-Quanitify server read/write performance.  Benchmarks are for Modbus TCP operations.
+Quanitify server read/write performance. Benchmarks are for Modbus TCP operations.
 
 Run benchmarks:
+
 ```
 $ go test -bench=.
 BenchmarkModbusWrite1968MultipleCoils-8            50000             30912 ns/op
@@ -227,10 +243,12 @@ BenchmarkModbusWrite123MultipleRegisters-8        100000             22655 ns/op
 BenchmarkModbusRead125HoldingRegisters-8          100000             21117 ns/op
 PASS
 ```
-Operations per second are higher when requests are not forced to be  synchronously processed.
+
+Operations per second are higher when requests are not forced to be synchronously processed.
 In the case of simultaneous client access, synchronous Modbus request processing prevents data corruption.
 
 To understand performanc limitations, create a CPU profile graph for the WriteMultipleCoils benchmark:
+
 ```
 go test -bench=.MultipleCoils -cpuprofile=cpu.out
 go tool pprof modbus-server.test cpu.out
@@ -242,6 +260,7 @@ go tool pprof modbus-server.test cpu.out
 There is a [known](https://github.com/golang/go/issues/10001) race condition in the code relating to calling Serial Read() and Close() functions in different go routines.
 
 To check for race conditions, run:
+
 ```
 go test --race
 ```
