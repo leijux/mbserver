@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 )
 
+type function func(*Server, Framer) ([]byte, *Exception)
+
 // ReadCoils function 1, reads coils from internal memory.
 func ReadCoils(s *Server, frame Framer) ([]byte, *Exception) {
 	register, numRegs, endRegister := registerAddressAndNumber(frame)
