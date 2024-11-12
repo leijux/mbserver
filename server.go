@@ -195,4 +195,9 @@ func (s *Server) Shutdown() {
 	close(s.closeSignalChan)
 
 	s.wg.Wait()
+
+	//close the listeners
+	for _, listener := range s.listeners {
+		listener.Close()
+	}
 }
