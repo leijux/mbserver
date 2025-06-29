@@ -1,15 +1,13 @@
 package mbserver
 
-import (
-	"strconv"
-)
+//go:generate stringer -type=Exception
 
 // Exception codes.
 type Exception uint8
 
 var (
 	// Success operation successful.
-	Success Exception
+	Success Exception = 0
 
 	// IllegalFunction function code received in the query is not recognized or allowed by slave.
 	IllegalFunction Exception = 1
@@ -38,39 +36,10 @@ var (
 	// GatewayPathUnavailable Specialized for Modbus gateways. Indicates a misconfigured gateway.
 	GatewayPathUnavailable Exception = 10
 
-	// GatewayTargetDeviceFailedtoRespond Specialized for Modbus gateways. Sent when slave fails to respond.
-	GatewayTargetDeviceFailedtoRespond Exception = 11
+	// GatewayTargetDeviceFailedToRespond Specialized for Modbus gateways. Sent when slave fails to respond.
+	GatewayTargetDeviceFailedToRespond Exception = 11
 )
 
 func (e Exception) Error() string {
-	return strconv.Itoa(int(e))
-}
-
-func (e Exception) String() string {
-	switch e {
-	case Success:
-		return "Success"
-	case IllegalFunction:
-		return "IllegalFunction"
-	case IllegalDataAddress:
-		return "IllegalDataAddress"
-	case IllegalDataValue:
-		return "IllegalDataValue"
-	case SlaveDeviceFailure:
-		return "SlaveDeviceFailure"
-	case AcknowledgeSlave:
-		return "AcknowledgeSlave"
-	case SlaveDeviceBusy:
-		return "SlaveDeviceBusy"
-	case NegativeAcknowledge:
-		return "NegativeAcknowledge"
-	case MemoryParityError:
-		return "MemoryParityError"
-	case GatewayPathUnavailable:
-		return "GatewayPathUnavailable"
-	case GatewayTargetDeviceFailedtoRespond:
-		return "GatewayTargetDeviceFailedtoRespond"
-	default:
-		return "unknown"
-	}
+	return e.String()
 }
