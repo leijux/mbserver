@@ -1,11 +1,14 @@
 package mbserver
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestCRC(t *testing.T) {
-	got := crcModbus([]byte{0x01, 0x04, 0x02, 0xFF, 0xFF})
+	got := crc16IBM([]byte{0x01, 0x04, 0x02, 0xFF, 0xFF})
 	expect := 0x80B8
-	if !isEqual(expect, got) {
-		t.Errorf("expected %x, got %x", expect, got)
-	}
+
+	assert.EqualValues(t, expect, got)
 }
