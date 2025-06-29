@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/goburrow/modbus"
+	"github.com/stretchr/testify/require"
 )
 
 type serverClient struct {
@@ -33,7 +34,12 @@ func serverClientSetup() *serverClient {
 	// Server
 	setup.slave = NewServer()
 	addr := getFreePort()
-	go setup.slave.ListenTCP(addr)
+	err := setup.slave.ListenTCP(addr)
+	if err != nil {
+		setup.err = err
+		return nil
+	}
+	go setup.slave.Start()
 
 	// Wait for the server to start
 	time.Sleep(1 * time.Millisecond)
@@ -68,9 +74,8 @@ func BenchmarkModbusWrite1968MultipleCoils(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Coils
 		results, err := setup.client.WriteMultipleCoils(100, uint16(dataSize*8), data)
-		if err != nil {
-			b.Fatalf("expected nil, got %v, %v\n", err, results)
-		}
+
+		require.Errorf(b, err, "expected nil, got %v, %v\n", err, results)
 	}
 }
 
@@ -83,9 +88,8 @@ func BenchmarkModbusRead2000Coils(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		results, err := setup.client.ReadCoils(0, 2000)
-		if err != nil {
-			b.Fatalf("expected nil, got %v, %v\n", err, results)
-		}
+
+		require.Errorf(b, err, "expected nil, got %v, %v\n", err, results)
 	}
 }
 
@@ -98,9 +102,8 @@ func BenchmarkModbusRead2000DiscreteInputs(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		results, err := setup.client.ReadDiscreteInputs(0, 2000)
-		if err != nil {
-			b.Fatalf("expected nil, got %v, %v\n", err, results)
-		}
+
+		require.Errorf(b, err, "expected nil, got %v, %v\n", err, results)
 	}
 }
 
@@ -115,9 +118,8 @@ func BenchmarkModbusWrite123MultipleRegisters(b *testing.B) {
 	dataSize := len(data) / 2
 	for i := 0; i < b.N; i++ {
 		results, err := setup.client.WriteMultipleRegisters(0, uint16(dataSize), data)
-		if err != nil {
-			b.Fatalf("expected nil, got %v, %v\n", err, results)
-		}
+
+		require.Errorf(b, err, "expected nil, got %v, %v\n", err, results)
 	}
 }
 
@@ -130,9 +132,8 @@ func BenchmarkModbusRead125HoldingRegisters(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		results, err := setup.client.ReadHoldingRegisters(1, 125)
-		if err != nil {
-			b.Fatalf("expected nil, got %v, %v\n", err, results)
-		}
+
+		require.Errorf(b, err, "expected nil, got %v, %v\n", err, results)
 	}
 }
 
@@ -146,7 +147,7 @@ func Example() {
 		return
 	}
 	defer serv.Shutdown()
-	go serv.Serve()
+	go serv.Start()
 
 	// Wait for the server to start
 	time.Sleep(1 * time.Millisecond)
@@ -178,8 +179,8 @@ func Example() {
 	// results [0 3 0 4 0 5]
 }
 
-// Override the default ReadDiscreteInputs funtion.
-func ExampleServer_RegisterFunctionHandler() {
+// Override the default ReadDiscreteInputs function.
+func ExampleWithRegisterFunction() {
 	// Override ReadDiscreteInputs function.
 	wf := WithRegisterFunction(2, func(s *Server, frame Framer) ([]byte, *Exception) {
 		register, numRegs, endRegister := registerAddressAndNumber(frame)
@@ -209,7 +210,7 @@ func ExampleServer_RegisterFunctionHandler() {
 		return
 	}
 	defer serv.Shutdown()
-	go serv.Serve()
+	go serv.Start()
 
 	// Wait for the server to start
 	time.Sleep(1 * time.Millisecond)

@@ -1,22 +1,12 @@
 package mbserver
 
 import (
-	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func isEqual(a interface{}, b interface{}) bool {
-	expect, _ := json.Marshal(a)
-	got, _ := json.Marshal(b)
-	if string(expect) != string(got) {
-		return false
-	}
-	return true
-}
 
 // Function 1
 func TestReadCoils(t *testing.T) {
@@ -40,10 +30,8 @@ func TestReadCoils(t *testing.T) {
 	response := s.handle(&req)
 
 	exception := GetException(response)
-	if exception != Success {
-		t.Errorf("expected Success, got %v", exception.String())
-		t.FailNow()
-	}
+	require.ErrorIs(t, exception, Success)
+
 	// 2 bytes, 0b1000011, 0b00000001
 	expect := []byte{2, 131, 1}
 	got := response.GetData()
@@ -73,10 +61,8 @@ func TestReadDiscreteInputs(t *testing.T) {
 	response := s.handle(&req)
 
 	exception := GetException(response)
-	if exception != Success {
-		t.Errorf("expected Success, got %v", exception.String())
-		t.FailNow()
-	}
+	require.ErrorIs(t, exception, Success)
+
 	expect := []byte{2, 129, 3}
 	got := response.GetData()
 
@@ -102,10 +88,8 @@ func TestReadHoldingRegisters(t *testing.T) {
 	req.frame = &frame
 	response := s.handle(&req)
 	exception := GetException(response)
-	if exception != Success {
-		t.Errorf("expected Success, got %v", exception.String())
-		t.FailNow()
-	}
+	require.ErrorIs(t, exception, Success)
+
 	expect := []byte{6, 0, 1, 0, 2, 255, 255}
 	got := response.GetData()
 	assert.Equal(t, expect, got)
@@ -130,10 +114,8 @@ func TestReadInputRegisters(t *testing.T) {
 	req.frame = &frame
 	response := s.handle(&req)
 	exception := GetException(response)
-	if exception != Success {
-		t.Errorf("expected Success, got %v", exception.String())
-		t.FailNow()
-	}
+	require.ErrorIs(t, exception, Success)
+
 	expect := []byte{6, 0, 1, 0, 2, 255, 255}
 	got := response.GetData()
 	assert.Equal(t, expect, got)
@@ -155,7 +137,7 @@ func TestWriteSingleCoil(t *testing.T) {
 	req.frame = &frame
 	response := s.handle(&req)
 	exception := GetException(response)
-	require.Equalf(t, exception, Success, "expected Success, got %v", exception.String())
+	require.ErrorIs(t, exception, Success)
 
 	expect := uint8(1)
 	got := s.Coils[65535]
@@ -178,7 +160,7 @@ func TestWriteHoldingRegister(t *testing.T) {
 	req.frame = &frame
 	response := s.handle(&req)
 	exception := GetException(response)
-	require.Equalf(t, exception, Success, "expected Success, got %v", exception.String())
+	require.ErrorIs(t, exception, Success)
 
 	expect := uint16(6)
 	got := s.HoldingRegisters[5]
@@ -201,10 +183,8 @@ func TestWriteMultipleCoils(t *testing.T) {
 	req.frame = &frame
 	response := s.handle(&req)
 	exception := GetException(response)
-	if exception != Success {
-		t.Errorf("expected Success, got %v", exception.String())
-		t.FailNow()
-	}
+	require.ErrorIs(t, exception, Success)
+
 	expect := []byte{1, 1}
 	got := s.Coils[1:3]
 	assert.Equal(t, expect, got)
@@ -226,10 +206,8 @@ func TestWriteHoldingRegisters(t *testing.T) {
 	req.frame = &frame
 	response := s.handle(&req)
 	exception := GetException(response)
-	if exception != Success {
-		t.Errorf("expected Success, got %v", exception.String())
-		t.FailNow()
-	}
+	require.ErrorIs(t, exception, Success)
+	
 	expect := []uint16{3, 4}
 	got := s.HoldingRegisters[1:3]
 	assert.Equal(t, expect, got)
