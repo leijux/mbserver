@@ -23,7 +23,7 @@ func NewRTUFrame(packet []byte) (*RTUFrame, error) {
 	// Check the CRC.
 	pLen := len(packet)
 	crcExpect := binary.LittleEndian.Uint16(packet[pLen-2 : pLen])
-	crcCalc := crcModbus(packet[0 : pLen-2])
+	crcCalc := crc16IBM(packet[0 : pLen-2])
 	if crcCalc != crcExpect {
 		return nil, fmt.Errorf("RTU Frame error: CRC (expected 0x%x, got 0x%x)", crcExpect, crcCalc)
 	}
@@ -53,7 +53,7 @@ func (frame *RTUFrame) Bytes() []byte {
 
 	// Calculate the CRC.
 	pLen := len(bytes)
-	crc := crcModbus(bytes[0:pLen])
+	crc := crc16IBM(bytes[0:pLen])
 
 	// Add the CRC.
 	bytes = append(bytes, []byte{0, 0}...)
