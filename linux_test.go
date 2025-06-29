@@ -1,15 +1,17 @@
+//go:build linux
 // +build linux
 
 package mbserver
 
 import (
-	"log"
 	"os/exec"
 	"testing"
 	"time"
 
 	"github.com/goburrow/modbus"
 	"github.com/goburrow/serial"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // The serial read and close has a known race condition.
@@ -20,9 +22,8 @@ func TestModbusRTU(t *testing.T) {
 		"pty,raw,echo=0,link=ttyFOO",
 		"pty,raw,echo=0,link=ttyBAR")
 	err := cmd.Start()
-	if err != nil {
-		log.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	defer cmd.Wait()
 	defer cmd.Process.Kill()
 
@@ -38,10 +39,9 @@ func TestModbusRTU(t *testing.T) {
 		StopBits: 1,
 		Parity:   "N",
 		Timeout:  10 * time.Second})
-	if err != nil {
-		t.Fatalf("failed to listen, got %v\n", err)
-	}
-	defer s.Close()
+	require.NoError(t, err)
+
+	defer s.Shutdown()
 
 	// Allow the server to start and to avoid a connection refused on the client
 	time.Sleep(1 * time.Millisecond)
@@ -56,28 +56,19 @@ func TestModbusRTU(t *testing.T) {
 	handler.Timeout = 5 * time.Second
 	// Connect manually so that multiple requests are handled in one connection session
 	err = handler.Connect()
-	if err != nil {
-		t.Errorf("failed to connect, got %v\n", err)
-		t.FailNow()
-	}
+	require.NoError(t, err)
+
 	defer handler.Close()
 	client := modbus.NewClient(handler)
 
 	// Coils
 	_, err = client.WriteMultipleCoils(100, 9, []byte{255, 1})
-	if err != nil {
-		t.Errorf("expected nil, got %v\n", err)
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	results, err := client.ReadCoils(100, 16)
-	if err != nil {
-		t.Errorf("expected nil, got %v\n", err)
-		t.FailNow()
-	}
+	require.NoError(t, err)
+
 	expect := []byte{255, 1}
 	got := results
-	if !isEqual(expect, got) {
-		t.Errorf("expected %v, got %v", expect, got)
-	}
+	assert.EqualValues(t, expect, got)
 }

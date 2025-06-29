@@ -2,25 +2,37 @@ package mbserver
 
 import (
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"io"
 	"net"
-	"strings"
+	"time"
 )
 
 func (s *Server) accept(listen net.Listener) error {
+	defer listen.Close()
+
 	for {
 		select {
 		case <-s.closeSignalChan:
-			return listen.Close()
+			return nil
 		default:
 			conn, err := listen.Accept()
 			if err != nil {
-				if strings.Contains(err.Error(), "use of closed network connection") {
-					return nil
+				var ne net.Error
+				if errors.As(err, &ne) && ne.Timeout() {
+					time.Sleep(100 * time.Millisecond)
+					continue
 				}
-				s.l.Error("Unable to accept connections", "err", err)
-				return err
+
+				select {
+				case <-s.closeSignalChan:
+					return nil
+				default:
+					return fmt.Errorf("unable to accept connections: %w", err)
+				}
 			}
+
 			s.wg.Add(1)
 
 			go func(conn net.Conn) {
@@ -32,26 +44,41 @@ func (s *Server) accept(listen net.Listener) error {
 					case <-s.closeSignalChan:
 						return
 					default:
+						conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+
 						packet := make([]byte, 512)
 						bytesRead, err := conn.Read(packet)
 						if err != nil {
-							if err != io.EOF {
-								s.l.Error("read eroor", "err", err)
+							var netErr net.Error
+							if errors.As(err, &netErr) && netErr.Timeout() {
+								// 超时，检查是否需要关闭
+								select {
+								case <-s.closeSignalChan:
+									return
+								default:
+									continue
+								}
 							}
-							return
+
+							if err != io.EOF {
+								return
+							}
 						}
 						// Set the length of the packet to the number of read bytes.
 						packet = packet[:bytesRead]
 
 						frame, err := NewTCPFrame(packet)
 						if err != nil {
-							s.l.Error("bad packet error", "err", err)
 							return
 						}
 
 						request := &Request{conn, frame}
 
-						s.requestChan <- request
+						select {
+						case s.requestChan <- request:
+						case <-s.closeSignalChan:
+							return
+						}
 					}
 				}
 			}(conn)
@@ -64,8 +91,7 @@ func (s *Server) accept(listen net.Listener) error {
 func (s *Server) ListenTCP(addressPort string) (err error) {
 	listen, err := net.Listen("tcp", addressPort)
 	if err != nil {
-		s.l.Error("failed to listen", "err", err)
-		return err
+		return fmt.Errorf("failed to listen on %s: %w", addressPort, err)
 	}
 	s.listeners = append(s.listeners, listen)
 	return err
@@ -75,8 +101,7 @@ func (s *Server) ListenTCP(addressPort string) (err error) {
 func (s *Server) ListenTLS(addressPort string, config *tls.Config) (err error) {
 	listen, err := tls.Listen("tcp", addressPort, config)
 	if err != nil {
-		s.l.Error("failed to listen on TLS", "err", err)
-		return err
+		return fmt.Errorf("failed to listen on %s: %w", addressPort, err)
 	}
 	s.listeners = append(s.listeners, listen)
 	return err

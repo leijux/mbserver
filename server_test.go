@@ -46,7 +46,7 @@ func TestModbus(t *testing.T) {
 	err := s.ListenTCP("127.0.0.1:3333")
 	require.NoError(t, err)
 	t.Cleanup(s.Shutdown)
-	go s.Serve()
+	go s.Start()
 
 	// Allow the server to start and to avoid a connection refused on the client
 	time.Sleep(1 * time.Millisecond)

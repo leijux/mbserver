@@ -1,9 +1,9 @@
-// Package mbserver implments a Modbus server (slave).
+// Package mbserver implements a Modbus server (slave).
 package mbserver
 
 import (
+	"errors"
 	"io"
-	"log/slog"
 	"net"
 	"sync"
 
@@ -12,9 +12,6 @@ import (
 
 // Server is a Modbus slave with allocated memory for discrete inputs, coils, etc.
 type Server struct {
-	// Debug enables more verbose messaging.
-	Debug bool
-
 	listeners []net.Listener
 	ports     []serial.Port
 
@@ -22,7 +19,6 @@ type Server struct {
 	closeSignalChan chan struct{}
 
 	requestChan chan *Request
-	l           *slog.Logger
 
 	function         [256]function
 	DiscreteInputs   []byte
@@ -39,14 +35,6 @@ type Request struct {
 
 // OptionFunc is a function type used to configure options for the Server.
 type OptionFunc func(s *Server)
-
-// WithLogger sets the logger for the Server.
-// Parameter l is a pointer to an *slog.Logger instance to be used for logging.
-func WithLogger(l *slog.Logger) OptionFunc {
-	return func(s *Server) {
-		s.l = l
-	}
-}
 
 // WithDiscreteInputs sets the DiscreteInputs data for the Server.
 // Parameter data is a byte slice containing the discrete input data to set.
@@ -106,11 +94,6 @@ func NewServer(opts ...OptionFunc) *Server {
 		opt(s)
 	}
 
-	// default slog.Logger
-	if s.l == nil {
-		s.l = slog.Default()
-	}
-
 	// Allocate Modbus memory maps.
 	if s.DiscreteInputs == nil {
 		s.DiscreteInputs = make([]byte, 65536)
@@ -153,7 +136,7 @@ func (s *Server) handle(request *Request) Framer {
 		exception = &IllegalFunction
 	}
 
-	if *exception == Success {
+	if !errors.Is(*exception, Success) {
 		response.SetException(exception)
 	}
 
@@ -173,8 +156,8 @@ func (s *Server) handler() {
 	}
 }
 
-// Serve start the service
-func (s *Server) Serve() {
+// Start the service
+func (s *Server) Start() {
 	for _, listener := range s.listeners {
 		go s.accept(listener)
 	}
