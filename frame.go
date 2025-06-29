@@ -12,7 +12,7 @@ type Framer interface {
 	SetData(data []byte)
 }
 
-// GetException retunrns the Modbus exception or Success (indicating not exception).
+// GetException returns the Modbus exception or Success (indicating not exception).
 func GetException(frame Framer) (exception Exception) {
 	function := frame.GetFunction()
 	if (function & 0x80) != 0 {
