@@ -8,7 +8,7 @@ type Framer interface {
 	Copy() Framer
 	GetData() []byte
 	GetFunction() uint8
-	SetException(exception *Exception)
+	SetException(Exception)
 	SetData(data []byte)
 }
 
@@ -21,17 +21,10 @@ func GetException(frame Framer) (exception Exception) {
 	return exception
 }
 
-// RegisterAddressAndNumber from Frame to register address and number
-func RegisterAddressAndNumber(frame Framer) (register int, numRegs int, endRegister int) {
-	return registerAddressAndNumber(frame)
-}
-
-func registerAddressAndNumber(frame Framer) (register int, numRegs int, endRegister int) {
+func registerAddressAndNumber(frame Framer) (register int, numRegs int) {
 	data := frame.GetData()
-	register = int(binary.BigEndian.Uint16(data[0:2]))
-	numRegs = int(binary.BigEndian.Uint16(data[2:4]))
-	endRegister = register + numRegs
-	return register, numRegs, endRegister
+
+	return int(binary.BigEndian.Uint16(data[0:2])), int(binary.BigEndian.Uint16(data[2:4]))
 }
 
 func registerAddressAndValue(frame Framer) (int, uint16) {

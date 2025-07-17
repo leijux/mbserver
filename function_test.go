@@ -10,12 +10,13 @@ import (
 
 // Function 1
 func TestReadCoils(t *testing.T) {
-	s := NewServer()
+	mr := NewMemRegister()
+	s := NewServer(WithRegister(mr))
 	// Set the coil values
-	s.Coils[10] = 1
-	s.Coils[11] = 1
-	s.Coils[17] = 1
-	s.Coils[18] = 1
+	mr.Coils[10] = true
+	mr.Coils[11] = true
+	mr.Coils[17] = true
+	mr.Coils[18] = true
 
 	var frame TCPFrame
 	frame.TransactionIdentifier = 1
@@ -41,12 +42,13 @@ func TestReadCoils(t *testing.T) {
 
 // Function 2
 func TestReadDiscreteInputs(t *testing.T) {
-	s := NewServer()
+	mr := NewMemRegister()
+	s := NewServer(WithRegister(mr))
 	// Set the discrete input values
-	s.DiscreteInputs[0] = 1
-	s.DiscreteInputs[7] = 1
-	s.DiscreteInputs[8] = 1
-	s.DiscreteInputs[9] = 1
+	mr.DiscreteInputs[0] = true
+	mr.DiscreteInputs[7] = true
+	mr.DiscreteInputs[8] = true
+	mr.DiscreteInputs[9] = true
 
 	var frame TCPFrame
 	frame.TransactionIdentifier = 1
@@ -71,10 +73,11 @@ func TestReadDiscreteInputs(t *testing.T) {
 
 // Function 3
 func TestReadHoldingRegisters(t *testing.T) {
-	s := NewServer()
-	s.HoldingRegisters[100] = 1
-	s.HoldingRegisters[101] = 2
-	s.HoldingRegisters[102] = 65535
+	mr := NewMemRegister()
+	s := NewServer(WithRegister(mr))
+	mr.HoldingRegisters[100] = 1
+	mr.HoldingRegisters[101] = 2
+	mr.HoldingRegisters[102] = 65535
 
 	var frame TCPFrame
 	frame.TransactionIdentifier = 1
@@ -97,10 +100,11 @@ func TestReadHoldingRegisters(t *testing.T) {
 
 // Function 4
 func TestReadInputRegisters(t *testing.T) {
-	s := NewServer()
-	s.InputRegisters[200] = 1
-	s.InputRegisters[201] = 2
-	s.InputRegisters[202] = 65535
+	mr := NewMemRegister()
+	s := NewServer(WithRegister(mr))
+	mr.InputRegisters[200] = 1
+	mr.InputRegisters[201] = 2
+	mr.InputRegisters[202] = 65535
 
 	var frame TCPFrame
 	frame.TransactionIdentifier = 1
@@ -123,7 +127,8 @@ func TestReadInputRegisters(t *testing.T) {
 
 // Function 5
 func TestWriteSingleCoil(t *testing.T) {
-	s := NewServer()
+	mr := NewMemRegister()
+	s := NewServer(WithRegister(mr))
 
 	var frame TCPFrame
 	frame.TransactionIdentifier = 1
@@ -139,14 +144,15 @@ func TestWriteSingleCoil(t *testing.T) {
 	exception := GetException(response)
 	require.ErrorIs(t, exception, Success)
 
-	expect := uint8(1)
-	got := s.Coils[65535]
+	expect := true
+	got := mr.Coils[65535]
 	assert.Equal(t, expect, got)
 }
 
 // Function 6
 func TestWriteHoldingRegister(t *testing.T) {
-	s := NewServer()
+	mr := NewMemRegister()
+	s := NewServer(WithRegister(mr))
 
 	var frame TCPFrame
 	frame.TransactionIdentifier = 1
@@ -163,13 +169,14 @@ func TestWriteHoldingRegister(t *testing.T) {
 	require.ErrorIs(t, exception, Success)
 
 	expect := uint16(6)
-	got := s.HoldingRegisters[5]
+	got := mr.HoldingRegisters[5]
 	assert.Equal(t, expect, got)
 }
 
 // Function 15
 func TestWriteMultipleCoils(t *testing.T) {
-	s := NewServer()
+	mr := NewMemRegister()
+	s := NewServer(WithRegister(mr))
 
 	var frame TCPFrame
 	frame.TransactionIdentifier = 1
@@ -185,14 +192,15 @@ func TestWriteMultipleCoils(t *testing.T) {
 	exception := GetException(response)
 	require.ErrorIs(t, exception, Success)
 
-	expect := []byte{1, 1}
-	got := s.Coils[1:3]
+	expect := []bool{true, true}
+	got := mr.Coils[1:3]
 	assert.Equal(t, expect, got)
 }
 
 // Function 16
 func TestWriteHoldingRegisters(t *testing.T) {
-	s := NewServer()
+	mr := NewMemRegister()
+	s := NewServer(WithRegister(mr))
 
 	var frame TCPFrame
 	frame.TransactionIdentifier = 1
@@ -207,9 +215,9 @@ func TestWriteHoldingRegisters(t *testing.T) {
 	response := s.handle(&req)
 	exception := GetException(response)
 	require.ErrorIs(t, exception, Success)
-	
+
 	expect := []uint16{3, 4}
-	got := s.HoldingRegisters[1:3]
+	got := mr.HoldingRegisters[1:3]
 	assert.Equal(t, expect, got)
 }
 
@@ -228,7 +236,8 @@ func TestUint16ToBytes(t *testing.T) {
 }
 
 func TestOutOfBounds(t *testing.T) {
-	s := NewServer()
+	mr := NewMemRegister()
+	s := NewServer(WithRegister(mr))
 
 	var frame TCPFrame
 	frame.TransactionIdentifier = 1

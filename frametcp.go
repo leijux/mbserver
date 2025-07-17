@@ -77,9 +77,9 @@ func (frame *TCPFrame) SetData(data []byte) {
 }
 
 // SetException sets the Modbus exception code in the frame.
-func (frame *TCPFrame) SetException(exception *Exception) {
+func (frame *TCPFrame) SetException(exception Exception) {
 	frame.Function = frame.Function | 0x80
-	frame.Data = []byte{byte(*exception)}
+	frame.Data = []byte{byte(exception)}
 	frame.setLength()
 }
 

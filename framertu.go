@@ -79,7 +79,7 @@ func (frame *RTUFrame) SetData(data []byte) {
 }
 
 // SetException sets the Modbus exception code in the frame.
-func (frame *RTUFrame) SetException(exception *Exception) {
+func (frame *RTUFrame) SetException(exception Exception) {
 	frame.Function = frame.Function | 0x80
-	frame.Data = []byte{byte(*exception)}
+	frame.Data = []byte{byte(exception)}
 }

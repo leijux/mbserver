@@ -41,8 +41,9 @@ func TestUnsupportedFunction(t *testing.T) {
 }
 
 func TestModbus(t *testing.T) {
+	mr := NewMemRegister()
 	// Server
-	s := NewServer()
+	s := NewServer(WithRegister(mr))
 	err := s.ListenTCP("127.0.0.1:3333")
 	require.NoError(t, err)
 	t.Cleanup(s.Shutdown)
@@ -105,8 +106,9 @@ func TestModbus(t *testing.T) {
 
 	t.Run("Input registers", func(t *testing.T) {
 		// Input registers
-		s.InputRegisters[65530] = 1
-		s.InputRegisters[65535] = 65535
+		mr.InputRegisters[65530] = 1
+		mr.InputRegisters[65535] = 65535
+
 		results, err := client.ReadInputRegisters(65530, 6)
 		require.NoError(t, err)
 
