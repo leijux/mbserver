@@ -75,10 +75,7 @@ func readHoldingRegisters(s *Server, frame Framer) ([]byte, Exception) {
 		return []byte{}, exception
 	}
 
-	data := make([]byte, 1+numRegs*2)
-	data[0] = byte(numRegs * 2)
-
-	return append(data, Uint16ToBytes(hRegisters)...), Success
+	return append([]byte{byte(numRegs * 2)}, Uint16ToBytes(hRegisters)...), Success
 }
 
 // readInputRegisters function 4, reads input registers from internal memory.
@@ -93,10 +90,7 @@ func readInputRegisters(s *Server, frame Framer) ([]byte, Exception) {
 		return []byte{}, exception
 	}
 
-	data := make([]byte, 1+numRegs*2)
-	data[0] = byte(numRegs * 2)
-
-	return append(data, Uint16ToBytes(iRegisters)...), Success
+	return append([]byte{byte(numRegs * 2)}, Uint16ToBytes(iRegisters)...), Success
 }
 
 // writeSingleCoil function 5, write a coil to internal memory.
