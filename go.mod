@@ -1,13 +1,13 @@
 module github.com/leijux/mbserver
 
-go 1.24
+go 1.25
 
 tool golang.org/x/tools/cmd/stringer
 
 require (
 	github.com/goburrow/modbus v0.1.0
 	github.com/goburrow/serial v0.1.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
