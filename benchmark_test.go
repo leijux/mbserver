@@ -208,7 +208,15 @@ func ExampleWithRegisterFunction() {
 		}
 		return data, Success
 	})
-	serv := NewServer(wf)
+
+	wr := WithRegister(&MemRegister{
+		DiscreteInputs: []bool{
+			true, true, true, true, true, true, true, true,
+			true, true, true, true, true, true, true, true,
+		},
+	})
+
+	serv := NewServer(wf, wr)
 
 	// Start the server.
 	err := serv.ListenTCP("localhost:4321")
