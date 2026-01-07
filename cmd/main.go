@@ -14,14 +14,15 @@ var addr = flag.String("addr", ":8080", "TCP address to listen on")
 func main() {
 	flag.Parse()
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGTERM, os.Interrupt)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	s := mbserver.NewServer()
 	s.ListenTCP(*addr)
+
 	defer s.Shutdown()
 
 	go s.Start()
 
-	<-c
+	<-sigs
 }
