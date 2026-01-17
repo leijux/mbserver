@@ -91,7 +91,7 @@ func (s *Server) accept(listen net.Listener) error {
 func (s *Server) ListenTCP(addressPort string) (err error) {
 	listen, err := net.Listen("tcp", addressPort)
 	if err != nil {
-		return fmt.Errorf("failed to listen on %s: %w", addressPort, err)
+		return err
 	}
 	s.listeners = append(s.listeners, listen)
 	return err
@@ -101,7 +101,7 @@ func (s *Server) ListenTCP(addressPort string) (err error) {
 func (s *Server) ListenTLS(addressPort string, config *tls.Config) (err error) {
 	listen, err := tls.Listen("tcp", addressPort, config)
 	if err != nil {
-		return fmt.Errorf("failed to listen on %s: %w", addressPort, err)
+		return err
 	}
 	s.listeners = append(s.listeners, listen)
 	return err
