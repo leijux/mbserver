@@ -21,13 +21,13 @@ func TestNewRTUFrame(t *testing.T) {
 
 func TestNewRTUFrameShortPacket(t *testing.T) {
 	_, err := NewRTUFrame([]byte{0x01, 0x04, 0xFF, 0xFF})
-	assert.NoError(t, err)
+	assert.Error(t, err)
 }
 
 func TestNewRTUFrameBadCRC(t *testing.T) {
 	// Bad CRC: 0x81 (should be 0x80)
 	_, err := NewRTUFrame([]byte{0x01, 0x04, 0x02, 0xFF, 0xFF, 0xB8, 0x81})
-	assert.NoError(t, err)
+	assert.Error(t, err)
 }
 
 func TestRTUFrameBytes(t *testing.T) {
