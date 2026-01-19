@@ -99,15 +99,22 @@ func writeSingleCoil(s *Server, frame Framer) ([]byte, Exception) {
 	if value != 0 {
 		value = 1 // Modbus standard uses 0 for off and 1 for on
 	}
-	s.register.WriteCoils(register, value != 0)
+
+	if exception := s.register.WriteSingleCoil(register, value != 0); exception != Success {
+		return []byte{}, exception
+	}
+
 	return frame.GetData()[0:4], Success
 }
 
-// writeHoldingRegister function 6, write a holding register to internal memory.
-func writeHoldingRegister(s *Server, frame Framer) ([]byte, Exception) {
+// writeSingleRegister function 6, write a holding register to internal memory.
+func writeSingleRegister(s *Server, frame Framer) ([]byte, Exception) {
 	register, value := registerAddressAndValue(frame)
 
-	s.register.WriteHoldingRegister(register, value)
+	if exception := s.register.WriteSingleRegister(register, value); exception != Success {
+		return []byte{}, exception
+	}
+
 	return frame.GetData()[0:4], Success
 }
 
@@ -126,9 +133,11 @@ func writeMultipleCoils(s *Server, frame Framer) ([]byte, Exception) {
 	//}
 
 	bitCount := 0
+	bitValue := make([]bool, numRegs)
+
 	for i, value := range valueBytes {
 		for bitPos := uint(0); bitPos < 8; bitPos++ {
-			s.register.WriteCoils(register+(i*8)+int(bitPos), bitAtPosition(value, bitPos) != 0)
+			bitValue[(i*8)+int(bitPos)] = bitAtPosition(value, bitPos) != 0
 			bitCount++
 			if bitCount >= numRegs {
 				break
@@ -139,11 +148,15 @@ func writeMultipleCoils(s *Server, frame Framer) ([]byte, Exception) {
 		}
 	}
 
+	if exception := s.register.WriteMultipleCoils(register, bitValue); exception != Success {
+		return []byte{}, exception
+	}
+
 	return frame.GetData()[0:4], Success
 }
 
-// writeHoldingRegisters function 16, writes holding registers to internal memory.
-func writeHoldingRegisters(s *Server, frame Framer) ([]byte, Exception) {
+// writeMultipleRegisters function 16, writes holding registers to internal memory.
+func writeMultipleRegisters(s *Server, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
 	valueBytes := frame.GetData()[5:]
 
@@ -156,7 +169,7 @@ func writeHoldingRegisters(s *Server, frame Framer) ([]byte, Exception) {
 	}
 
 	values := BytesToUint16(valueBytes)
-	if exception := s.register.WriteHoldingRegisters(register, values); exception != Success {
+	if exception := s.register.WriteMultipleRegisters(register, values); exception != Success {
 		return []byte{}, exception
 	}
 

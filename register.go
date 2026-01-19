@@ -6,10 +6,10 @@ type Register interface {
 	ReadHoldingRegisters(int, int) ([]uint16, Exception)
 	ReadInputRegisters(int, int) ([]uint16, Exception)
 
-	WriteCoils(int, bool) Exception
-	WriteHoldingRegister(int, uint16) Exception
+	WriteSingleCoil(int, bool) Exception
+	WriteSingleRegister(int, uint16) Exception
 	WriteMultipleCoils(int, []bool) Exception
-	WriteHoldingRegisters(int, []uint16) Exception
+	WriteMultipleRegisters(int, []uint16) Exception
 }
 
 type MemRegister struct {
@@ -19,6 +19,8 @@ type MemRegister struct {
 	HoldingRegisters []uint16
 	InputRegisters   []uint16
 }
+
+var _ Register = (*MemRegister)(nil)
 
 func NewMemRegister() *MemRegister {
 	return &MemRegister{
@@ -57,7 +59,7 @@ func (r *MemRegister) ReadInputRegisters(start, count int) ([]uint16, Exception)
 	return r.InputRegisters[start : start+count], Success
 }
 
-func (r *MemRegister) WriteCoils(start int, value bool) Exception {
+func (r *MemRegister) WriteSingleCoil(start int, value bool) Exception {
 	if start >= len(r.Coils) {
 		return IllegalDataAddress
 	}
@@ -65,7 +67,7 @@ func (r *MemRegister) WriteCoils(start int, value bool) Exception {
 	return Success
 }
 
-func (r *MemRegister) WriteHoldingRegister(start int, value uint16) Exception {
+func (r *MemRegister) WriteSingleRegister(start int, value uint16) Exception {
 	if start >= len(r.HoldingRegisters) {
 		return IllegalDataAddress
 	}
@@ -83,7 +85,7 @@ func (r *MemRegister) WriteMultipleCoils(start int, values []bool) Exception {
 	return Success
 }
 
-func (r *MemRegister) WriteHoldingRegisters(start int, values []uint16) Exception {
+func (r *MemRegister) WriteMultipleRegisters(start int, values []uint16) Exception {
 	if start+len(values) > len(r.HoldingRegisters) {
 		return IllegalDataAddress
 	}

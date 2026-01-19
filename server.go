@@ -59,9 +59,9 @@ func NewServer(opts ...OptionFunc) *Server {
 	s.function[3] = readHoldingRegisters
 	s.function[4] = readInputRegisters
 	s.function[5] = writeSingleCoil
-	s.function[6] = writeHoldingRegister
+	s.function[6] = writeSingleRegister
 	s.function[15] = writeMultipleCoils
-	s.function[16] = writeHoldingRegisters
+	s.function[16] = writeMultipleRegisters
 
 	for _, opt := range opts {
 		opt(s)
