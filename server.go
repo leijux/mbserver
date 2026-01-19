@@ -97,7 +97,7 @@ func (s *Server) handle(request *Request) Framer {
 
 	funcCode := request.frame.GetFunction()
 	if s.function[funcCode] != nil {
-		data, exception = s.function[funcCode](s, request.frame)
+		data, exception = s.function[funcCode](s.register, request.frame)
 		response.SetData(data)
 	} else {
 		exception = IllegalFunction

@@ -4,10 +4,10 @@ import (
 	"encoding/binary"
 )
 
-type Function func(*Server, Framer) ([]byte, Exception)
+type Function func(Register, Framer) ([]byte, Exception)
 
 // readCoils function 1, reads coils from internal memory.
-func readCoils(s *Server, frame Framer) ([]byte, Exception) {
+func readCoils(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
 	if register+numRegs > 65536 {
 		return []byte{}, IllegalDataAddress
@@ -20,7 +20,7 @@ func readCoils(s *Server, frame Framer) ([]byte, Exception) {
 	data := make([]byte, 1+dataSize)
 	data[0] = byte(dataSize)
 
-	coils, exception := s.register.ReadCoils(register, numRegs)
+	coils, exception := r.ReadCoils(register, numRegs)
 	if exception != Success {
 		return []byte{}, exception
 	}
@@ -35,7 +35,7 @@ func readCoils(s *Server, frame Framer) ([]byte, Exception) {
 }
 
 // readDiscreteInputs function 2, reads discrete inputs from internal memory.
-func readDiscreteInputs(s *Server, frame Framer) ([]byte, Exception) {
+func readDiscreteInputs(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
 	if register+numRegs > 65536 {
 		return []byte{}, IllegalDataAddress
@@ -48,7 +48,7 @@ func readDiscreteInputs(s *Server, frame Framer) ([]byte, Exception) {
 	data := make([]byte, 1+dataSize)
 	data[0] = byte(dataSize)
 
-	discreteInputs, exception := s.register.ReadDiscreteInputs(register, numRegs)
+	discreteInputs, exception := r.ReadDiscreteInputs(register, numRegs)
 	if exception != Success {
 		return []byte{}, exception
 	}
@@ -64,13 +64,13 @@ func readDiscreteInputs(s *Server, frame Framer) ([]byte, Exception) {
 }
 
 // readHoldingRegisters function 3, reads holding registers from internal memory.
-func readHoldingRegisters(s *Server, frame Framer) ([]byte, Exception) {
+func readHoldingRegisters(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
 	if register+numRegs > 65536 {
 		return []byte{}, IllegalDataAddress
 	}
 
-	hRegisters, exception := s.register.ReadHoldingRegisters(register, numRegs)
+	hRegisters, exception := r.ReadHoldingRegisters(register, numRegs)
 	if exception != Success {
 		return []byte{}, exception
 	}
@@ -79,13 +79,13 @@ func readHoldingRegisters(s *Server, frame Framer) ([]byte, Exception) {
 }
 
 // readInputRegisters function 4, reads input registers from internal memory.
-func readInputRegisters(s *Server, frame Framer) ([]byte, Exception) {
+func readInputRegisters(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
 	if register+numRegs > 65536 {
 		return []byte{}, IllegalDataAddress
 	}
 
-	iRegisters, exception := s.register.ReadInputRegisters(register, numRegs)
+	iRegisters, exception := r.ReadInputRegisters(register, numRegs)
 	if exception != Success {
 		return []byte{}, exception
 	}
@@ -94,13 +94,13 @@ func readInputRegisters(s *Server, frame Framer) ([]byte, Exception) {
 }
 
 // writeSingleCoil function 5, write a coil to internal memory.
-func writeSingleCoil(s *Server, frame Framer) ([]byte, Exception) {
+func writeSingleCoil(r Register, frame Framer) ([]byte, Exception) {
 	register, value := registerAddressAndValue(frame)
 	if value != 0 {
 		value = 1 // Modbus standard uses 0 for off and 1 for on
 	}
 
-	if exception := s.register.WriteSingleCoil(register, value != 0); exception != Success {
+	if exception := r.WriteSingleCoil(register, value != 0); exception != Success {
 		return []byte{}, exception
 	}
 
@@ -108,10 +108,10 @@ func writeSingleCoil(s *Server, frame Framer) ([]byte, Exception) {
 }
 
 // writeSingleRegister function 6, write a holding register to internal memory.
-func writeSingleRegister(s *Server, frame Framer) ([]byte, Exception) {
+func writeSingleRegister(r Register, frame Framer) ([]byte, Exception) {
 	register, value := registerAddressAndValue(frame)
 
-	if exception := s.register.WriteSingleRegister(register, value); exception != Success {
+	if exception := r.WriteSingleRegister(register, value); exception != Success {
 		return []byte{}, exception
 	}
 
@@ -119,7 +119,7 @@ func writeSingleRegister(s *Server, frame Framer) ([]byte, Exception) {
 }
 
 // writeMultipleCoils function 15, writes holding registers to internal memory.
-func writeMultipleCoils(s *Server, frame Framer) ([]byte, Exception) {
+func writeMultipleCoils(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
 	valueBytes := frame.GetData()[5:]
 
@@ -148,7 +148,7 @@ func writeMultipleCoils(s *Server, frame Framer) ([]byte, Exception) {
 		}
 	}
 
-	if exception := s.register.WriteMultipleCoils(register, bitValue); exception != Success {
+	if exception := r.WriteMultipleCoils(register, bitValue); exception != Success {
 		return []byte{}, exception
 	}
 
@@ -156,7 +156,7 @@ func writeMultipleCoils(s *Server, frame Framer) ([]byte, Exception) {
 }
 
 // writeMultipleRegisters function 16, writes holding registers to internal memory.
-func writeMultipleRegisters(s *Server, frame Framer) ([]byte, Exception) {
+func writeMultipleRegisters(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
 	valueBytes := frame.GetData()[5:]
 
@@ -169,7 +169,7 @@ func writeMultipleRegisters(s *Server, frame Framer) ([]byte, Exception) {
 	}
 
 	values := BytesToUint16(valueBytes)
-	if exception := s.register.WriteMultipleRegisters(register, values); exception != Success {
+	if exception := r.WriteMultipleRegisters(register, values); exception != Success {
 		return []byte{}, exception
 	}
 

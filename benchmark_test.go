@@ -182,7 +182,7 @@ func Example() {
 // Override the default ReadDiscreteInputs function.
 func ExampleWithRegisterFunction() {
 	// Override ReadDiscreteInputs function.
-	wf := WithRegisterFunction(2, func(s *Server, frame Framer) ([]byte, Exception) {
+	wf := WithRegisterFunction(2, func(r Register, frame Framer) ([]byte, Exception) {
 		register, numRegs := registerAddressAndNumber(frame)
 		// Check the request is within the allocated memory
 		if register+numRegs > 65535 {
@@ -195,7 +195,7 @@ func ExampleWithRegisterFunction() {
 		data := make([]byte, 1+dataSize)
 		data[0] = byte(dataSize)
 
-		discreteInputs, exception := s.register.ReadDiscreteInputs(register, numRegs)
+		discreteInputs, exception := r.ReadDiscreteInputs(register, numRegs)
 		if exception != Success {
 			return []byte{}, exception
 		}
