@@ -38,7 +38,7 @@ type OptionFunc func(s *Server)
 // Parameter funcCode is the function code, and function is the custom handler for that code.
 func WithRegisterFunction(funcCode uint8, function Function) OptionFunc {
 	return func(s *Server) {
-		s.registerFunctionHandler(funcCode, function)
+		s.function[funcCode] = function
 	}
 }
 
@@ -82,20 +82,15 @@ func NewServer(opts ...OptionFunc) *Server {
 	return s
 }
 
-// registerFunctionHandler override the default behavior for a given Modbus function.
-func (s *Server) registerFunctionHandler(funcCode uint8, f Function) {
-	s.function[funcCode] = f
-}
-
 func (s *Server) handle(request *Request) Framer {
 	var (
 		exception Exception
 		data      []byte
+
+		response = request.frame.Copy()
+		funcCode = request.frame.GetFunction()
 	)
 
-	response := request.frame.Copy()
-
-	funcCode := request.frame.GetFunction()
 	if s.function[funcCode] != nil {
 		data, exception = s.function[funcCode](s.register, request.frame)
 		response.SetData(data)
