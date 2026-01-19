@@ -1,266 +1,162 @@
-[![Build Status](https://travis-ci.org/tbrandon/mbserver.svg?branch=master)](https://travis-ci.org/tbrandon/mbserver)
-[![Coverage Status](http://codecov.io/github/tbrandon/mbserver/coverage.svg?branch=master)](http://codecov.io/github/tbrandon/mbserver?branch=master)
-[![GoDoc](https://godoc.org/github.com/tbrandon/mbserver?status.svg)](https://godoc.org/github.com/tbrandon/mbserver)
-[![Software License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/tbrandon/mbserver/blob/master/LICENSE)
+# mbserver
 
-# Golang Modbus Server (Slave)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/leijux/mbserver)](https://github.com/leijux/mbserver)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Reference](https://pkg.go.dev/badge/github.com/leijux/mbserver.svg)](https://pkg.go.dev/github.com/leijux/mbserver)
 
-The Golang Modbus Server (Slave) responds to the following Modbus function requests:
+一个用 Go 语言实现的 Modbus 服务器（从站），支持 TCP 和 RTU（串行）协议。
 
-Bit access:
+## 功能特性
 
-- Read Discrete Inputs
-- Read Coils
-- Write Single Coil
-- Write Multiple Coils
+- 完整的 Modbus 协议支持（功能码 1、2、3、4、5、6、15、16）
+- 支持 TCP、TLS 和 RTU（串行）传输层
+- 可自定义的内存寄存器（线圈、离散输入、保持寄存器、输入寄存器）
+- 可扩展的函数处理器（支持自定义功能码）
+- 线程安全，并发处理请求
+- 优雅关闭
 
-16-bit acess:
+## 安装
 
-- Read Input Registers
-- Read Multiple Holding Registers
-- Write Single Holding Register
-- Write Multiple Holding Registers
+```bash
+go get github.com/leijux/mbserver
+```
 
-TCP and serial RTU access is supported.
+## 快速开始
 
-The server internally allocates memory for 65536 coils, 65536 discrete inputs, 653356 holding registers and 65536 input registers.
-On start, all values are initialzied to zero. Modbus requests are processed in the order they are received and will not overlap/interfere with each other.
-
-The golang [mbserver documentation](https://godoc.org/github.com/tbrandon/mbserver).
-
-## Example Modbus TCP Server
-
-Create a Modbus TCP Server (Slave):
+以下是一个简单的 TCP 服务器示例：
 
 ```go
 package main
 
 import (
-	"log/slog"
-	"os"
-	"os/signal"
-	"syscall"
+    "context"
+    "flag"
+    "log/slog"
+    "os/signal"
+    "syscall"
 
-	"github.com/leijux/mbserver"
+    "github.com/leijux/mbserver"
 )
 
-func main() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	serv := mbserver.NewServer()
-	err := serv.ListenTCP("127.0.0.1:1502")
-	if err != nil {
-		slog.Error("listen tcp err", "err", err)
-	}
-	defer serv.Shutdown()
-	go serv.Serve()
-
-	// wait ctrl+c
-	<-sigs
-}
-```
-
-The server will continue to listen until killed (&lt;ctrl>-c).
-Modbus typically uses port 502 (standard users require special permissions to listen on port 502). Change the port number as required.
-Change the address to 0.0.0.0 to listen on all network interfaces.
-
-An example of a client writing and reading holding regsiters:
-
-```go
-package main
-
-import (
-	"fmt"
-
-	"github.com/goburrow/modbus"
-)
+var addr = flag.String("addr", ":8080", "TCP address to listen on")
 
 func main() {
-	handler := modbus.NewTCPClientHandler("localhost:1502")
-	// Connect manually so that multiple requests are handled in one session
-	err := handler.Connect()
-	defer handler.Close()
-	client := modbus.NewClient(handler)
+    flag.Parse()
 
-	_, err = client.WriteMultipleRegisters(0, 3, []byte{0, 3, 0, 4, 0, 5})
-	if err != nil {
-		fmt.Printf("%v\n", err)
-	}
+    ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
-	results, err := client.ReadHoldingRegisters(0, 3)
-	if err != nil {
-		fmt.Printf("%v\n", err)
-	}
-	fmt.Printf("results %v\n", results)
+    s := mbserver.NewServer()
+
+    err := s.ListenTCP(*addr)
+    if err != nil {
+        slog.Error("listen tcp err", "err", err)
+        return
+    }
+
+    defer s.Shutdown()
+
+    go s.Start()
+
+    <-ctx.Done()
+}
+```
+
+运行该程序将启动一个监听 `:8080` 的 Modbus TCP 服务器。
+
+## 使用方法
+
+### 创建服务器
+
+```go
+s := mbserver.NewServer()
+```
+
+### 使用自定义寄存器
+
+默认情况下，服务器使用内存寄存器（每个区域 65536 个地址）。你可以提供自己的寄存器实现：
+
+```go
+type MyRegister struct {
+    // 实现 mbserver.Register 接口
 }
 
-Outputs:
-results [0 3 0 4 0 5]
+mr := &MyRegister{}
+s := mbserver.NewServer(mbserver.WithRegister(mr))
 ```
 
-## Example Listening on Multiple TCP Ports and Serial Devices
+### 自定义函数处理器
 
-The Golang Modbus Server can listen on multiple TCP ports and serial devices.
-In the following example, the Modbus server will be configured to listen on
-127.0.0.1:1502, 0.0.0.0:3502, /dev/ttyUSB0 and /dev/ttyACM0
+你可以为特定的功能码注册自定义处理函数：
 
 ```go
-	s := mbserver.NewServer()
-	err := s.ListenTCP("127.0.0.1:1502")
-	if err != nil {
-		slog.Error("listen tcp err", "err", err)
-	}
-
-	err = s.ListenTCP("0.0.0.0:3502")
-	if err != nil {
-		slog.Error("listen tcp err", "err", err)
-	}
-
-	err = s.ListenRTU(&serial.Config{
-		Address:  "/dev/ttyUSB0",
-		BaudRate: 115200,
-		DataBits: 8,
-		StopBits: 1,
-		Parity:   "N",
-		Timeout:  10 * time.Second})
-	if err != nil {
-		slog.Error("failed to listen", "err", err)
-		os.Exit(1)
-	}
-
-	err = s.ListenRTU(&serial.Config{
-		Address:  "/dev/ttyACM0",
-		BaudRate: 9600,
-		DataBits: 8,
-		StopBits: 1,
-		Parity:   "N",
-		Timeout:  10 * time.Second,
-		RS485: serial.RS485Config{
-			Enabled:            true,
-			DelayRtsBeforeSend: 2 * time.Millisecond,
-			DelayRtsAfterSend:  3 * time.Millisecond,
-			RtsHighDuringSend:  false,
-			RtsHighAfterSend:   false,
-			RxDuringTx:         false,
-		}})
-	if err != nil {
-		slog.Error("failed to listen", "err", err)
-		os.Exit(1)
-	}
-
-	defer s.Shutdown()
-
-	s.Serve()
+s := mbserver.NewServer(mbserver.WithRegisterFunction(0x41, myCustomFunction))
 ```
 
-Information on [serial port settings](https://godoc.org/github.com/goburrow/serial).
-
-## Server Customization
-
-RegisterFunctionHandler allows the default server functionality to be overridden for a Modbus function code.
+### 监听 TCP
 
 ```go
-func (s *Server) RegisterFunctionHandler(funcCode uint8, function func(*Server, Framer) ([]byte, *Exception))
-```
-
-Example of overriding the default ReadDiscreteInputs funtion:
-
-```go
-serv := NewServer()
-
-// Override ReadDiscreteInputs function.
-serv.RegisterFunctionHandler(2,
-    func(s *Server, frame Framer) ([]byte, *Exception) {
-        register, numRegs, endRegister := frame.registerAddressAndNumber()
-        // Check the request is within the allocated memory
-        if endRegister > 65535 {
-            return []byte{}, &IllegalDataAddress
-        }
-        dataSize := numRegs / 8
-        if (numRegs % 8) != 0 {
-            dataSize++
-        }
-        data := make([]byte, 1+dataSize)
-        data[0] = byte(dataSize)
-        for i := range s.DiscreteInputs[register:endRegister] {
-            // Return all 1s, regardless of the value in the DiscreteInputs array.
-            shift := uint(i) % 8
-            data[1+i/8] |= byte(1 << shift)
-        }
-        return data, &Success
-    })
-
-// Start the server.
-err := serv.ListenTCP("localhost:4321")
+err := s.ListenTCP(":502")
 if err != nil {
-    log.Printf("%v\n", err)
-    return
+    // 处理错误
 }
-defer serv.Close()
-
-// Wait for the server to start
-time.Sleep(1 * time.Millisecond)
-
-// Example of a client reading from the server started above.
-// Connect a client.
-handler := modbus.NewTCPClientHandler("localhost:4321")
-err = handler.Connect()
-if err != nil {
-    log.Printf("%v\n", err)
-    return
-}
-defer handler.Close()
-client := modbus.NewClient(handler)
-
-// Read discrete inputs.
-results, err := client.ReadDiscreteInputs(0, 16)
-if err != nil {
-    log.Printf("%v\n", err)
-}
-
-fmt.Printf("results %v\n", results)
 ```
 
-Output:
+### 监听串行端口（RTU）
 
 ```go
-results [255 255]
+import "github.com/goburrow/serial"
+
+config := &serial.Config{
+    Address:  "/dev/ttyUSB0",
+    BaudRate: 9600,
+    DataBits: 8,
+    StopBits: 1,
+    Parity:   "N",
+}
+err := s.ListenRTU(config)
+if err != nil {
+    // 处理错误
+}
 ```
 
-## Benchmarks
+### 监听 TLS（安全 TCP）
 
-Quanitify server read/write performance. Benchmarks are for Modbus TCP operations.
+```go
+import "crypto/tls"
 
-Run benchmarks:
-
-```
-$ go test -bench=.
-BenchmarkModbusWrite1968MultipleCoils-8            50000             30912 ns/op
-BenchmarkModbusRead2000Coils-8                     50000             27875 ns/op
-BenchmarkModbusRead2000DiscreteInputs-8            50000             27335 ns/op
-BenchmarkModbusWrite123MultipleRegisters-8        100000             22655 ns/op
-BenchmarkModbusRead125HoldingRegisters-8          100000             21117 ns/op
-PASS
+tlsConfig := &tls.Config{
+    // 配置 TLS 证书和密钥
+}
+err := s.ListenTLS(":802", tlsConfig)
+if err != nil {
+    // 处理错误
+}
 ```
 
-Operations per second are higher when requests are not forced to be synchronously processed.
-In the case of simultaneous client access, synchronous Modbus request processing prevents data corruption.
+### 启动服务器
 
-To understand performanc limitations, create a CPU profile graph for the WriteMultipleCoils benchmark:
-
-```
-go test -bench=.MultipleCoils -cpuprofile=cpu.out
-go tool pprof modbus-server.test cpu.out
-(pprof) web
+```go
+go s.Start()
 ```
 
-## Race Conditions
+### 关闭服务器
 
-There is a [known](https://github.com/golang/go/issues/10001) race condition in the code relating to calling Serial Read() and Close() functions in different go routines.
-
-To check for race conditions, run:
-
+```go
+s.Shutdown()
 ```
-go test --race
-```
+
+## API 文档
+
+完整的 API 文档请参阅 [pkg.go.dev/github.com/leijux/mbserver](https://pkg.go.dev/github.com/leijux/mbserver)。
+
+## 示例
+
+更多示例请查看 `cmd/` 目录和测试文件。
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request。
+
+## 许可证
+
+本项目基于 MIT 许可证开源，详见 [LICENSE](LICENSE) 文件。
