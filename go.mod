@@ -1,6 +1,6 @@
 module github.com/leijux/mbserver
 
-go 1.25
+go 1.24
 
 tool golang.org/x/tools/cmd/stringer
 
