@@ -88,8 +88,10 @@ func (s *Server) registerFunctionHandler(funcCode uint8, f Function) {
 }
 
 func (s *Server) handle(request *Request) Framer {
-	var exception Exception
-	var data []byte
+	var (
+		exception Exception
+		data      []byte
+	)
 
 	response := request.frame.Copy()
 
@@ -131,6 +133,7 @@ func (s *Server) Start() {
 		s.wg.Add(1)
 		go func() {
 			defer s.wg.Done()
+
 			s.acceptSerialRequests(port)
 		}()
 	}
@@ -147,5 +150,10 @@ func (s *Server) Shutdown() {
 	//close the listeners
 	for _, listener := range s.listeners {
 		listener.Close()
+	}
+
+	//close the ports
+	for _, port := range s.ports {
+		port.Close()
 	}
 }
