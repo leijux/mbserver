@@ -1,8 +1,9 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"os"
+	"log/slog"
 	"os/signal"
 	"syscall"
 
@@ -14,15 +15,19 @@ var addr = flag.String("addr", ":8080", "TCP address to listen on")
 func main() {
 	flag.Parse()
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	s := mbserver.NewServer()
-	s.ListenTCP(*addr)
+
+	err := s.ListenTCP(*addr)
+	if err != nil {
+		slog.Error("listen tcp err", "err", err)
+		return
+	}
 
 	defer s.Shutdown()
 
 	go s.Start()
 
-	<-sigs
+	<-ctx.Done()
 }
