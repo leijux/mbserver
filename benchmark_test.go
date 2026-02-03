@@ -80,7 +80,7 @@ func BenchmarkModbusWrite1968MultipleCoils(b *testing.B) {
 		// Coils
 		results, err := setup.client.WriteMultipleCoils(100, uint16(dataSize*8), data)
 
-		require.Errorf(b, err, "expected nil, got %v, %v\n", err, results)
+		require.NoErrorf(b, err, "expected nil, got %v, %v\n", err, results)
 	}
 }
 
@@ -94,7 +94,7 @@ func BenchmarkModbusRead2000Coils(b *testing.B) {
 	for b.Loop() {
 		results, err := setup.client.ReadCoils(0, 2000)
 
-		require.Errorf(b, err, "expected nil, got %v, %v\n", err, results)
+		require.NoErrorf(b, err, "expected nil, got %v, %v\n", err, results)
 	}
 }
 
@@ -108,7 +108,7 @@ func BenchmarkModbusRead2000DiscreteInputs(b *testing.B) {
 	for b.Loop() {
 		results, err := setup.client.ReadDiscreteInputs(0, 2000)
 
-		require.Errorf(b, err, "expected nil, got %v, %v\n", err, results)
+		require.NoErrorf(b, err, "expected nil, got %v, %v\n", err, results)
 	}
 }
 
@@ -124,7 +124,7 @@ func BenchmarkModbusWrite123MultipleRegisters(b *testing.B) {
 	for b.Loop() {
 		results, err := setup.client.WriteMultipleRegisters(0, uint16(dataSize), data)
 
-		require.Errorf(b, err, "expected nil, got %v, %v\n", err, results)
+		require.NoErrorf(b, err, "expected nil, got %v, %v\n", err, results)
 	}
 }
 
@@ -138,7 +138,7 @@ func BenchmarkModbusRead125HoldingRegisters(b *testing.B) {
 	for b.Loop() {
 		results, err := setup.client.ReadHoldingRegisters(1, 125)
 
-		require.Errorf(b, err, "expected nil, got %v, %v\n", err, results)
+		require.NoErrorf(b, err, "expected nil, got %v, %v\n", err, results)
 	}
 }
 
