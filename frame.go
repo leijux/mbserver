@@ -21,7 +21,7 @@ func GetException(frame Framer) (exception Exception) {
 	return exception
 }
 
-func registerAddressAndNumber(frame Framer) (register int, numRegs int) {
+func registerAddressAndNumber(frame Framer) (register, numRegs int) {
 	data := frame.GetData()
 
 	return int(binary.BigEndian.Uint16(data[0:2])), int(binary.BigEndian.Uint16(data[2:4]))
@@ -35,7 +35,7 @@ func registerAddressAndValue(frame Framer) (int, uint16) {
 }
 
 // SetDataWithRegisterAndNumber sets the RTUFrame Data byte field to hold a register and number of registers
-func SetDataWithRegisterAndNumber(frame Framer, register uint16, number uint16) {
+func SetDataWithRegisterAndNumber(frame Framer, register, number uint16) {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint16(data[0:2], register)
 	binary.BigEndian.PutUint16(data[2:4], number)
@@ -43,7 +43,7 @@ func SetDataWithRegisterAndNumber(frame Framer, register uint16, number uint16) 
 }
 
 // SetDataWithRegisterAndNumberAndValues sets the TCPFrame Data byte field to hold a register and number of registers and values
-func SetDataWithRegisterAndNumberAndValues(frame Framer, register uint16, number uint16, values []uint16) {
+func SetDataWithRegisterAndNumberAndValues(frame Framer, register, number uint16, values []uint16) {
 	data := make([]byte, 5+len(values)*2)
 	binary.BigEndian.PutUint16(data[0:2], register)
 	binary.BigEndian.PutUint16(data[2:4], number)
@@ -53,7 +53,7 @@ func SetDataWithRegisterAndNumberAndValues(frame Framer, register uint16, number
 }
 
 // SetDataWithRegisterAndNumberAndBytes sets the TCPFrame Data byte field to hold a register and number of registers and coil bytes
-func SetDataWithRegisterAndNumberAndBytes(frame Framer, register uint16, number uint16, bytes []byte) {
+func SetDataWithRegisterAndNumberAndBytes(frame Framer, register, number uint16, bytes []byte) {
 	data := make([]byte, 5+len(bytes))
 	binary.BigEndian.PutUint16(data[0:2], register)
 	binary.BigEndian.PutUint16(data[2:4], number)
