@@ -3,6 +3,7 @@ package mbserver
 import (
 	"fmt"
 	"log"
+	"net"
 	"testing"
 	"time"
 
@@ -17,15 +18,19 @@ type serverClient struct {
 	clientTCPHandler *modbus.TCPClientHandler
 }
 
-var testPortNum = 3300
-
 // getFreePort prevents collisions with ports that are in the process of being closed
 // or being used by other tests.
 func getFreePort() string {
-	// TODO improve.  Need to know if the port is already in use
-	addr := fmt.Sprintf("127.0.0.1:%d", testPortNum)
-	testPortNum++
-	return addr
+	// 监听端口0，系统会自动分配可用端口
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(err)
+	}
+	defer listener.Close()
+
+	// 获取实际分配的端口
+	addr := listener.Addr().(*net.TCPAddr)
+	return fmt.Sprintf("127.0.0.1:%d", addr.Port)
 }
 
 func serverClientSetup() *serverClient {
