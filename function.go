@@ -9,7 +9,7 @@ type Function func(Register, Framer) ([]byte, Exception)
 // readCoils function 1, reads coils from internal memory.
 func readCoils(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
-	if register > 65535 || numRegs > 65535-register {
+	if register > 65535 || register+numRegs > 65536 {
 		return []byte{}, IllegalDataAddress
 	}
 
@@ -37,7 +37,7 @@ func readCoils(r Register, frame Framer) ([]byte, Exception) {
 // readDiscreteInputs function 2, reads discrete inputs from internal memory.
 func readDiscreteInputs(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
-	if register > 65535 || numRegs > 65535-register {
+	if register > 65535 || register+numRegs > 65536 {
 		return []byte{}, IllegalDataAddress
 	}
 
@@ -66,7 +66,7 @@ func readDiscreteInputs(r Register, frame Framer) ([]byte, Exception) {
 // readHoldingRegisters function 3, reads holding registers from internal memory.
 func readHoldingRegisters(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
-	if register > 65535 || numRegs > 65535-register {
+	if register > 65535 || register+numRegs > 65536 {
 		return []byte{}, IllegalDataAddress
 	}
 
@@ -85,7 +85,7 @@ func readHoldingRegisters(r Register, frame Framer) ([]byte, Exception) {
 // readInputRegisters function 4, reads input registers from internal memory.
 func readInputRegisters(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
-	if register > 65535 || numRegs > 65535-register {
+	if register > 65535 || register+numRegs > 65536 {
 		return []byte{}, IllegalDataAddress
 	}
 
