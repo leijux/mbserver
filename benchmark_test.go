@@ -12,7 +12,6 @@ import (
 )
 
 type serverClient struct {
-	err              error
 	slave            *Server
 	client           modbus.Client
 	clientTCPHandler *modbus.TCPClientHandler
@@ -33,7 +32,7 @@ func getFreePort() string {
 	return fmt.Sprintf("127.0.0.1:%d", addr.Port)
 }
 
-func serverClientSetup() *serverClient {
+func serverClientSetup() (*serverClient, error) {
 	setup := &serverClient{}
 
 	// Server
@@ -41,8 +40,7 @@ func serverClientSetup() *serverClient {
 	addr := getFreePort()
 	err := setup.slave.ListenTCP(addr)
 	if err != nil {
-		setup.err = err
-		return nil
+		return nil, err
 	}
 	go setup.slave.Start()
 
@@ -52,14 +50,14 @@ func serverClientSetup() *serverClient {
 	// Client
 	setup.clientTCPHandler = modbus.NewTCPClientHandler(addr)
 	// Connect manually so that multiple requests are handled in one connection session
-	setup.err = setup.clientTCPHandler.Connect()
-	if setup.err != nil {
-		return setup
+	err = setup.clientTCPHandler.Connect()
+	if err != nil {
+		return nil, err
 	}
 	// Class defer setup.clientTCPHandler.Close() later. If we call here, we will close the co
 	setup.client = modbus.NewClient(setup.clientTCPHandler)
 
-	return setup
+	return setup, nil
 }
 
 func (setup *serverClient) Close() {
@@ -68,9 +66,9 @@ func (setup *serverClient) Close() {
 }
 
 func BenchmarkModbusWrite1968MultipleCoils(b *testing.B) {
-	setup := serverClientSetup()
-	if setup.err != nil {
-		b.Fatalf("setup failed, %v\n", setup.err)
+	setup, err := serverClientSetup()
+	if err != nil {
+		b.Fatalf("setup failed, %v\n", err)
 	}
 	defer setup.Close()
 
@@ -85,9 +83,9 @@ func BenchmarkModbusWrite1968MultipleCoils(b *testing.B) {
 }
 
 func BenchmarkModbusRead2000Coils(b *testing.B) {
-	setup := serverClientSetup()
-	if setup.err != nil {
-		b.Fatalf("setup failed, %v\n", setup.err)
+	setup, err := serverClientSetup()
+	if err != nil {
+		b.Fatalf("setup failed, %v\n", err)
 	}
 	defer setup.Close()
 
@@ -99,9 +97,9 @@ func BenchmarkModbusRead2000Coils(b *testing.B) {
 }
 
 func BenchmarkModbusRead2000DiscreteInputs(b *testing.B) {
-	setup := serverClientSetup()
-	if setup.err != nil {
-		b.Fatalf("setup failed, %v\n", setup.err)
+	setup, err := serverClientSetup()
+	if err != nil {
+		b.Fatalf("setup failed, %v\n", err)
 	}
 	defer setup.Close()
 
@@ -113,9 +111,9 @@ func BenchmarkModbusRead2000DiscreteInputs(b *testing.B) {
 }
 
 func BenchmarkModbusWrite123MultipleRegisters(b *testing.B) {
-	setup := serverClientSetup()
-	if setup.err != nil {
-		b.Fatalf("setup failed, %v\n", setup.err)
+	setup, err := serverClientSetup()
+	if err != nil {
+		b.Fatalf("setup failed, %v\n", err)
 	}
 	defer setup.Close()
 
@@ -129,9 +127,9 @@ func BenchmarkModbusWrite123MultipleRegisters(b *testing.B) {
 }
 
 func BenchmarkModbusRead125HoldingRegisters(b *testing.B) {
-	setup := serverClientSetup()
-	if setup.err != nil {
-		b.Fatalf("setup failed, %v\n", setup.err)
+	setup, err := serverClientSetup()
+	if err != nil {
+		b.Fatalf("setup failed, %v\n", err)
 	}
 	defer setup.Close()
 
@@ -148,7 +146,7 @@ func Example() {
 	serv := NewServer()
 	err := serv.ListenTCP("127.0.0.1:1502")
 	if err != nil {
-		log.Printf("%v\n", err)
+		log.Fatalln(err)
 		return
 	}
 	defer serv.Shutdown()
@@ -161,7 +159,7 @@ func Example() {
 	handler := modbus.NewTCPClientHandler("localhost:1502")
 	err = handler.Connect()
 	if err != nil {
-		log.Printf("%v\n", err)
+		log.Fatalln(err)
 		return
 	}
 	defer handler.Close()
@@ -170,13 +168,13 @@ func Example() {
 	// Write some registers.
 	_, err = client.WriteMultipleRegisters(0, 3, []byte{0, 3, 0, 4, 0, 5})
 	if err != nil {
-		log.Printf("%v\n", err)
+		log.Fatalln(err)
 	}
 
 	// Read those registers back.
 	results, err := client.ReadHoldingRegisters(0, 3)
 	if err != nil {
-		log.Printf("%v\n", err)
+		log.Fatalln(err)
 	}
 	fmt.Printf("results %v\n", results)
 
@@ -226,7 +224,7 @@ func ExampleWithRegisterFunction() {
 	// Start the server.
 	err := serv.ListenTCP("localhost:4321")
 	if err != nil {
-		log.Printf("%v\n", err)
+		log.Fatalln(err)
 		return
 	}
 	defer serv.Shutdown()
@@ -239,8 +237,7 @@ func ExampleWithRegisterFunction() {
 	handler := modbus.NewTCPClientHandler("localhost:4321")
 	err = handler.Connect()
 	if err != nil {
-		log.Printf("%v\n", err)
-		return
+		log.Fatalln(err)
 	}
 	defer handler.Close()
 	client := modbus.NewClient(handler)
@@ -248,7 +245,7 @@ func ExampleWithRegisterFunction() {
 	// Read discrete inputs.
 	results, err := client.ReadDiscreteInputs(0, 16)
 	if err != nil {
-		log.Printf("%v\n", err)
+		log.Fatalln(err)
 	}
 
 	fmt.Printf("results %v\n", results)
