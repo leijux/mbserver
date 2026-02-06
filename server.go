@@ -76,7 +76,7 @@ func NewServer(opts ...OptionFunc) *Server {
 		}
 	}
 
-	s.requestChan = make(chan *Request)
+	s.requestChan = make(chan *Request, 10)
 	s.closeSignalChan = make(chan struct{})
 
 	return s

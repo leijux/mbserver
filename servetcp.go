@@ -2,9 +2,11 @@ package mbserver
 
 import (
 	"crypto/tls"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"time"
 )
@@ -46,29 +48,57 @@ func (s *Server) accept(listen net.Listener) error {
 					default:
 						conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 
-						packet := make([]byte, 512)
-						bytesRead, err := conn.Read(packet)
-						if err != nil {
-							var netErr net.Error
-							if errors.As(err, &netErr) && netErr.Timeout() {
-								// 超时，检查是否需要关闭
-								select {
-								case <-s.closeSignalChan:
-									return
-								default:
-									continue
+						header := make([]byte, 7)
+						for i := 0; i < 7; {
+							n, err := conn.Read(header[i:])
+							if err != nil {
+								var netErr net.Error
+								if errors.As(err, &netErr) && netErr.Timeout() {
+									select {
+									case <-s.closeSignalChan:
+										return
+									default:
+										continue
+									}
 								}
-							}
-
-							if err != io.EOF {
+								if err != io.EOF {
+									return
+								}
 								return
 							}
+							i += n
 						}
-						// Set the length of the packet to the number of read bytes.
-						packet = packet[:bytesRead]
+
+						pduLength := binary.BigEndian.Uint16(header[4:6])
+
+						packet := make([]byte, 7+pduLength)
+						copy(packet, header)
+						remaining := packet[7:]
+
+						for i := 0; i < int(pduLength); {
+							n, err := conn.Read(remaining[i:])
+							if err != nil {
+								var netErr net.Error
+								if errors.As(err, &netErr) && netErr.Timeout() {
+									select {
+									case <-s.closeSignalChan:
+										return
+									default:
+										continue
+									}
+								}
+								if err != io.EOF {
+									return
+								}
+								return
+							}
+							i += n
+						}
 
 						frame, err := NewTCPFrame(packet)
 						if err != nil {
+							slog.Error("failed to parse TCP frame", "error", err)
+
 							return
 						}
 
