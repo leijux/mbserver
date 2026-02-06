@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"time"
@@ -61,21 +60,19 @@ func (s *Server) accept(listen net.Listener) error {
 										continue
 									}
 								}
-								if err != io.EOF {
-									return
-								}
 								return
 							}
 							i += n
 						}
 
 						pduLength := binary.BigEndian.Uint16(header[4:6])
+						dataLength := pduLength - 1
 
-						packet := make([]byte, 7+pduLength)
+						packet := make([]byte, 7+dataLength)
 						copy(packet, header)
 						remaining := packet[7:]
 
-						for i := 0; i < int(pduLength); {
+						for i := 0; i < int(dataLength); {
 							n, err := conn.Read(remaining[i:])
 							if err != nil {
 								var netErr net.Error
@@ -86,9 +83,6 @@ func (s *Server) accept(listen net.Listener) error {
 									default:
 										continue
 									}
-								}
-								if err != io.EOF {
-									return
 								}
 								return
 							}
