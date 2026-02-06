@@ -31,6 +31,10 @@ func NewTCPFrame(packet []byte) (*TCPFrame, error) {
 		Data:                  packet[8:],
 	}
 
+	if frame.ProtocolIdentifier != 0 {
+		return nil, errors.New("TCP Frame error: invalid protocol identifier")
+	}
+
 	// Check expected vs actual packet length.
 	if int(frame.Length) != len(frame.Data)+2 {
 		return nil, errors.New("specified packet length does not match actual packet length")

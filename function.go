@@ -9,7 +9,7 @@ type Function func(Register, Framer) ([]byte, Exception)
 // readCoils function 1, reads coils from internal memory.
 func readCoils(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
-	if register+numRegs > 65536 {
+	if register > 65535 || numRegs > 65535-register {
 		return []byte{}, IllegalDataAddress
 	}
 
@@ -37,7 +37,7 @@ func readCoils(r Register, frame Framer) ([]byte, Exception) {
 // readDiscreteInputs function 2, reads discrete inputs from internal memory.
 func readDiscreteInputs(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
-	if register+numRegs > 65536 {
+	if register > 65535 || numRegs > 65535-register {
 		return []byte{}, IllegalDataAddress
 	}
 
@@ -66,7 +66,7 @@ func readDiscreteInputs(r Register, frame Framer) ([]byte, Exception) {
 // readHoldingRegisters function 3, reads holding registers from internal memory.
 func readHoldingRegisters(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
-	if register+numRegs > 65536 {
+	if register > 65535 || numRegs > 65535-register {
 		return []byte{}, IllegalDataAddress
 	}
 
@@ -75,13 +75,17 @@ func readHoldingRegisters(r Register, frame Framer) ([]byte, Exception) {
 		return []byte{}, exception
 	}
 
-	return append([]byte{byte(numRegs * 2)}, Uint16ToBytes(hRegisters)...), Success
+	data := make([]byte, 1, 1+numRegs*2)
+	data[0] = byte(numRegs * 2)
+	data = append(data, Uint16ToBytes(hRegisters)...)
+
+	return data, Success
 }
 
 // readInputRegisters function 4, reads input registers from internal memory.
 func readInputRegisters(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
-	if register+numRegs > 65536 {
+	if register > 65535 || numRegs > 65535-register {
 		return []byte{}, IllegalDataAddress
 	}
 
@@ -90,7 +94,11 @@ func readInputRegisters(r Register, frame Framer) ([]byte, Exception) {
 		return []byte{}, exception
 	}
 
-	return append([]byte{byte(numRegs * 2)}, Uint16ToBytes(iRegisters)...), Success
+	data := make([]byte, 1, 1+numRegs*2)
+	data[0] = byte(numRegs * 2)
+	data = append(data, Uint16ToBytes(iRegisters)...)
+
+	return data, Success
 }
 
 // writeSingleCoil function 5, write a coil to internal memory.
@@ -123,14 +131,14 @@ func writeMultipleCoils(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
 	valueBytes := frame.GetData()[5:]
 
-	if register+numRegs > 65535 {
+	if register > 65535 || numRegs > 65535-register {
 		return []byte{}, IllegalDataAddress
 	}
 
-	// TODO This is not correct, bits and bytes do not always align
-	//if len(valueBytes)/2 != numRegs {
-	//	return []byte{}, &IllegalDataAddress
-	//}
+	expectedBytes := (numRegs + 7) / 8
+	if len(valueBytes) < expectedBytes {
+		return []byte{}, IllegalDataValue
+	}
 
 	bitCount := 0
 	bitValue := make([]bool, numRegs)
@@ -160,12 +168,12 @@ func writeMultipleRegisters(r Register, frame Framer) ([]byte, Exception) {
 	register, numRegs := registerAddressAndNumber(frame)
 	valueBytes := frame.GetData()[5:]
 
-	if register+numRegs > 65535 {
+	if register > 65535 || numRegs > 65535-register {
 		return []byte{}, IllegalDataAddress
 	}
 
 	if len(valueBytes)/2 != numRegs {
-		return []byte{}, IllegalDataAddress
+		return []byte{}, IllegalDataValue
 	}
 
 	values := BytesToUint16(valueBytes)
