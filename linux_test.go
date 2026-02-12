@@ -42,6 +42,7 @@ func TestModbusRTU(t *testing.T) {
 	require.NoError(t, err)
 
 	defer s.Shutdown()
+	go s.Start()
 
 	// Allow the server to start and to avoid a connection refused on the client
 	time.Sleep(1 * time.Millisecond)
