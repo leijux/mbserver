@@ -7,10 +7,10 @@ import (
 
 // RTUFrame is the Modbus TCP frame.
 type RTUFrame struct {
-	Address  uint8
-	Function uint8
 	Data     []byte
 	CRC      uint16
+	Address  uint8
+	Function uint8
 }
 
 // NewRTUFrame converts a packet to a Modbus TCP frame.
