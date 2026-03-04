@@ -41,3 +41,12 @@ func TestRTUFrameBytes(t *testing.T) {
 	expect := []byte{0x01, 0x04, 0x02, 0xFF, 0xFF, 0xB8, 0x80}
 	assert.EqualValues(t, expect, got)
 }
+
+func TestRTUFrameSetException(t *testing.T) {
+	frame := &RTUFrame{Function: 4, Data: []byte{0x01, 0x02}}
+
+	frame.SetException(IllegalDataAddress)
+
+	assert.EqualValues(t, 0x84, frame.Function)
+	assert.Equal(t, []byte{byte(IllegalDataAddress)}, frame.Data)
+}

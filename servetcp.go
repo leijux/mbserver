@@ -45,7 +45,9 @@ func (s *Server) accept(listen net.Listener) error {
 					case <-s.closeSignalChan:
 						return
 					default:
-						conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+						if err := conn.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
+							return
+						}
 
 						header := make([]byte, 7)
 						for i := 0; i < 7; {

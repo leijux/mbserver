@@ -37,7 +37,7 @@ func TestUnsupportedFunction(t *testing.T) {
 	response := s.handle(&req)
 	exception := GetException(response)
 
-	assert.Equalf(t, exception, IllegalFunction, "expected IllegalFunction (%d), got (%v)", IllegalFunction, exception)
+	assert.Equalf(t, IllegalFunction, exception, "expected IllegalFunction (%d), got (%v)", IllegalFunction, exception)
 }
 
 func TestModbus(t *testing.T) {

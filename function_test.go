@@ -1,74 +1,63 @@
 package mbserver
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func newTestTCPFrame(function uint8) *TCPFrame {
+	return &TCPFrame{
+		TransactionIdentifier: 1,
+		ProtocolIdentifier:    0,
+		Length:                6,
+		Device:                255,
+		Function:              function,
+	}
+}
+
+func assertSuccess(t *testing.T, response Framer) {
+	t.Helper()
+	require.Equal(t, Success, GetException(response))
+}
+
 // Function 1
 func TestReadCoils(t *testing.T) {
 	mr := NewMemRegister()
 	s := NewServer(WithRegister(mr))
-	// Set the coil values
 	mr.Coils[10] = true
 	mr.Coils[11] = true
 	mr.Coils[17] = true
 	mr.Coils[18] = true
 
-	var frame TCPFrame
-	frame.TransactionIdentifier = 1
-	frame.ProtocolIdentifier = 0
-	frame.Length = 6
-	frame.Device = 255
-	frame.Function = 1
-	SetDataWithRegisterAndNumber(&frame, 10, 9)
+	frame := newTestTCPFrame(1)
+	SetDataWithRegisterAndNumber(frame, 10, 9)
 
-	var req Request
-	req.frame = &frame
-	response := s.handle(&req)
+	response := s.handle(&Request{frame: frame})
+	assertSuccess(t, response)
 
-	exception := GetException(response)
-	require.ErrorIs(t, exception, Success)
-
-	// 2 bytes, 0b1000011, 0b00000001
-	expect := []byte{2, 131, 1}
-	got := response.GetData()
-
-	assert.Equal(t, expect, got)
+	expected := []byte{2, 131, 1}
+	assert.Equal(t, expected, response.GetData())
 }
 
 // Function 2
 func TestReadDiscreteInputs(t *testing.T) {
 	mr := NewMemRegister()
 	s := NewServer(WithRegister(mr))
-	// Set the discrete input values
 	mr.DiscreteInputs[0] = true
 	mr.DiscreteInputs[7] = true
 	mr.DiscreteInputs[8] = true
 	mr.DiscreteInputs[9] = true
 
-	var frame TCPFrame
-	frame.TransactionIdentifier = 1
-	frame.ProtocolIdentifier = 0
-	frame.Length = 6
-	frame.Device = 255
-	frame.Function = 2
-	SetDataWithRegisterAndNumber(&frame, 0, 10)
+	frame := newTestTCPFrame(2)
+	SetDataWithRegisterAndNumber(frame, 0, 10)
 
-	var req Request
-	req.frame = &frame
-	response := s.handle(&req)
+	response := s.handle(&Request{frame: frame})
+	assertSuccess(t, response)
 
-	exception := GetException(response)
-	require.ErrorIs(t, exception, Success)
-
-	expect := []byte{2, 129, 3}
-	got := response.GetData()
-
-	assert.Equal(t, expect, got)
+	expected := []byte{2, 129, 3}
+	assert.Equal(t, expected, response.GetData())
 }
 
 // Function 3
@@ -79,23 +68,14 @@ func TestReadHoldingRegisters(t *testing.T) {
 	mr.HoldingRegisters[101] = 2
 	mr.HoldingRegisters[102] = 65535
 
-	var frame TCPFrame
-	frame.TransactionIdentifier = 1
-	frame.ProtocolIdentifier = 0
-	frame.Length = 6
-	frame.Device = 255
-	frame.Function = 3
-	SetDataWithRegisterAndNumber(&frame, 100, 3)
+	frame := newTestTCPFrame(3)
+	SetDataWithRegisterAndNumber(frame, 100, 3)
 
-	var req Request
-	req.frame = &frame
-	response := s.handle(&req)
-	exception := GetException(response)
-	require.ErrorIs(t, exception, Success)
+	response := s.handle(&Request{frame: frame})
+	assertSuccess(t, response)
 
-	expect := []byte{6, 0, 1, 0, 2, 255, 255}
-	got := response.GetData()
-	assert.Equal(t, expect, got)
+	expected := []byte{6, 0, 1, 0, 2, 255, 255}
+	assert.Equal(t, expected, response.GetData())
 }
 
 // Function 4
@@ -106,23 +86,14 @@ func TestReadInputRegisters(t *testing.T) {
 	mr.InputRegisters[201] = 2
 	mr.InputRegisters[202] = 65535
 
-	var frame TCPFrame
-	frame.TransactionIdentifier = 1
-	frame.ProtocolIdentifier = 0
-	frame.Length = 6
-	frame.Device = 255
-	frame.Function = 4
-	SetDataWithRegisterAndNumber(&frame, 200, 3)
+	frame := newTestTCPFrame(4)
+	SetDataWithRegisterAndNumber(frame, 200, 3)
 
-	var req Request
-	req.frame = &frame
-	response := s.handle(&req)
-	exception := GetException(response)
-	require.ErrorIs(t, exception, Success)
+	response := s.handle(&Request{frame: frame})
+	assertSuccess(t, response)
 
-	expect := []byte{6, 0, 1, 0, 2, 255, 255}
-	got := response.GetData()
-	assert.Equal(t, expect, got)
+	expected := []byte{6, 0, 1, 0, 2, 255, 255}
+	assert.Equal(t, expected, response.GetData())
 }
 
 // Function 5
@@ -130,23 +101,12 @@ func TestWriteSingleCoil(t *testing.T) {
 	mr := NewMemRegister()
 	s := NewServer(WithRegister(mr))
 
-	var frame TCPFrame
-	frame.TransactionIdentifier = 1
-	frame.ProtocolIdentifier = 0
-	frame.Length = 12
-	frame.Device = 255
-	frame.Function = 5
-	SetDataWithRegisterAndNumber(&frame, 65535, 1024)
+	frame := newTestTCPFrame(5)
+	SetDataWithRegisterAndNumber(frame, 65535, 1024)
 
-	var req Request
-	req.frame = &frame
-	response := s.handle(&req)
-	exception := GetException(response)
-	require.ErrorIs(t, exception, Success)
-
-	expect := true
-	got := mr.Coils[65535]
-	assert.Equal(t, expect, got)
+	response := s.handle(&Request{frame: frame})
+	assertSuccess(t, response)
+	assert.Equal(t, true, mr.Coils[65535])
 }
 
 // Function 6
@@ -154,23 +114,12 @@ func TestWriteHoldingRegister(t *testing.T) {
 	mr := NewMemRegister()
 	s := NewServer(WithRegister(mr))
 
-	var frame TCPFrame
-	frame.TransactionIdentifier = 1
-	frame.ProtocolIdentifier = 0
-	frame.Length = 12
-	frame.Device = 255
-	frame.Function = 6
-	SetDataWithRegisterAndNumber(&frame, 5, 6)
+	frame := newTestTCPFrame(6)
+	SetDataWithRegisterAndNumber(frame, 5, 6)
 
-	var req Request
-	req.frame = &frame
-	response := s.handle(&req)
-	exception := GetException(response)
-	require.ErrorIs(t, exception, Success)
-
-	expect := uint16(6)
-	got := mr.HoldingRegisters[5]
-	assert.Equal(t, expect, got)
+	response := s.handle(&Request{frame: frame})
+	assertSuccess(t, response)
+	assert.Equal(t, uint16(6), mr.HoldingRegisters[5])
 }
 
 // Function 15
@@ -178,23 +127,12 @@ func TestWriteMultipleCoils(t *testing.T) {
 	mr := NewMemRegister()
 	s := NewServer(WithRegister(mr))
 
-	var frame TCPFrame
-	frame.TransactionIdentifier = 1
-	frame.ProtocolIdentifier = 0
-	frame.Length = 12
-	frame.Device = 255
-	frame.Function = 15
-	SetDataWithRegisterAndNumberAndBytes(&frame, 1, 2, []byte{3})
+	frame := newTestTCPFrame(15)
+	SetDataWithRegisterAndNumberAndBytes(frame, 1, 2, []byte{3})
 
-	var req Request
-	req.frame = &frame
-	response := s.handle(&req)
-	exception := GetException(response)
-	require.ErrorIs(t, exception, Success)
-
-	expect := []bool{true, true}
-	got := mr.Coils[1:3]
-	assert.Equal(t, expect, got)
+	response := s.handle(&Request{frame: frame})
+	assertSuccess(t, response)
+	assert.Equal(t, []bool{true, true}, mr.Coils[1:3])
 }
 
 // Function 16
@@ -202,23 +140,12 @@ func TestWriteHoldingRegisters(t *testing.T) {
 	mr := NewMemRegister()
 	s := NewServer(WithRegister(mr))
 
-	var frame TCPFrame
-	frame.TransactionIdentifier = 1
-	frame.ProtocolIdentifier = 0
-	frame.Length = 12
-	frame.Device = 255
-	frame.Function = 16
-	SetDataWithRegisterAndNumberAndValues(&frame, 1, 2, []uint16{3, 4})
+	frame := newTestTCPFrame(16)
+	SetDataWithRegisterAndNumberAndValues(frame, 1, 2, []uint16{3, 4})
 
-	var req Request
-	req.frame = &frame
-	response := s.handle(&req)
-	exception := GetException(response)
-	require.ErrorIs(t, exception, Success)
-
-	expect := []uint16{3, 4}
-	got := mr.HoldingRegisters[1:3]
-	assert.Equal(t, expect, got)
+	response := s.handle(&Request{frame: frame})
+	assertSuccess(t, response)
+	assert.Equal(t, []uint16{3, 4}, mr.HoldingRegisters[1:3])
 }
 
 func TestBytesToUint16(t *testing.T) {
@@ -239,62 +166,105 @@ func TestOutOfBounds(t *testing.T) {
 	mr := NewMemRegister()
 	s := NewServer(WithRegister(mr))
 
-	var frame TCPFrame
-	frame.TransactionIdentifier = 1
-	frame.ProtocolIdentifier = 0
-	frame.Length = 6
-	frame.Device = 255
-
-	var req Request
-	req.frame = &frame
-
-	// bits
-	SetDataWithRegisterAndNumber(&frame, 65535, 2)
-
-	frame.Function = 1
-	response := s.handle(&req)
-	exception := GetException(response)
-	if !errors.Is(exception, IllegalDataAddress) {
-		t.Errorf("expected IllegalDataAddress, got %v", exception.String())
+	tests := []struct {
+		name     string
+		function uint8
+		setData  func(*TCPFrame)
+		expect   Exception
+	}{
+		{
+			name:     "read coils overflow",
+			function: 1,
+			setData: func(frame *TCPFrame) {
+				SetDataWithRegisterAndNumber(frame, 65535, 2)
+			},
+			expect: IllegalDataAddress,
+		},
+		{
+			name:     "read discrete inputs overflow",
+			function: 2,
+			setData: func(frame *TCPFrame) {
+				SetDataWithRegisterAndNumber(frame, 65535, 2)
+			},
+			expect: IllegalDataAddress,
+		},
+		{
+			name:     "write multiple coils overflow",
+			function: 15,
+			setData: func(frame *TCPFrame) {
+				SetDataWithRegisterAndNumberAndBytes(frame, 65535, 2, []byte{3})
+			},
+			expect: IllegalDataAddress,
+		},
+		{
+			name:     "read holding registers overflow",
+			function: 3,
+			setData: func(frame *TCPFrame) {
+				SetDataWithRegisterAndNumber(frame, 65535, 2)
+			},
+			expect: IllegalDataAddress,
+		},
+		{
+			name:     "read input registers overflow",
+			function: 4,
+			setData: func(frame *TCPFrame) {
+				SetDataWithRegisterAndNumber(frame, 65535, 2)
+			},
+			expect: IllegalDataAddress,
+		},
+		{
+			name:     "write holding registers overflow",
+			function: 16,
+			setData: func(frame *TCPFrame) {
+				SetDataWithRegisterAndNumberAndValues(frame, 65535, 2, []uint16{0, 0})
+			},
+			expect: IllegalDataAddress,
+		},
 	}
 
-	frame.Function = 2
-	response = s.handle(&req)
-	exception = GetException(response)
-	if !errors.Is(exception, IllegalDataAddress) {
-		t.Errorf("expected IllegalDataAddress, got %v", exception.String())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			frame := newTestTCPFrame(tt.function)
+			tt.setData(frame)
+
+			response := s.handle(&Request{frame: frame})
+			require.Equal(t, tt.expect, GetException(response))
+		})
+	}
+}
+
+func TestIllegalDataValue(t *testing.T) {
+	mr := NewMemRegister()
+	s := NewServer(WithRegister(mr))
+
+	tests := []struct {
+		name     string
+		function uint8
+		setData  func(*TCPFrame)
+	}{
+		{
+			name:     "write multiple coils missing payload bytes",
+			function: 15,
+			setData: func(frame *TCPFrame) {
+				SetDataWithRegisterAndNumberAndBytes(frame, 1, 10, []byte{1})
+			},
+		},
+		{
+			name:     "write holding registers mismatched payload",
+			function: 16,
+			setData: func(frame *TCPFrame) {
+				SetDataWithRegisterAndNumberAndBytes(frame, 1, 2, []byte{0, 1})
+			},
+		},
 	}
 
-	SetDataWithRegisterAndNumberAndBytes(&frame, 65535, 2, []byte{3})
-	frame.Function = 15
-	response = s.handle(&req)
-	exception = GetException(response)
-	if !errors.Is(exception, IllegalDataAddress) {
-		t.Errorf("expected IllegalDataAddress, got %v", exception.String())
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			frame := newTestTCPFrame(tt.function)
+			tt.setData(frame)
 
-	// registers
-	SetDataWithRegisterAndNumber(&frame, 65535, 2)
-
-	frame.Function = 3
-	response = s.handle(&req)
-	exception = GetException(response)
-	if !errors.Is(exception, IllegalDataAddress) {
-		t.Errorf("expected IllegalDataAddress, got %v", exception.String())
-	}
-
-	frame.Function = 4
-	response = s.handle(&req)
-	exception = GetException(response)
-	if !errors.Is(exception, IllegalDataAddress) {
-		t.Errorf("expected IllegalDataAddress, got %v", exception.String())
-	}
-
-	SetDataWithRegisterAndNumberAndValues(&frame, 65535, 2, []uint16{0, 0})
-	frame.Function = 16
-	response = s.handle(&req)
-	exception = GetException(response)
-	if !errors.Is(exception, IllegalDataAddress) {
-		t.Errorf("expected IllegalDataAddress, got %v", exception.String())
+			response := s.handle(&Request{frame: frame})
+			require.Equal(t, IllegalDataValue, GetException(response))
+		})
 	}
 }
