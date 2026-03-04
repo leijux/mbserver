@@ -4,7 +4,9 @@
 package mbserver
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,23 +19,38 @@ import (
 // The serial read and close has a known race condition.
 // https://github.com/golang/go/issues/10001
 func TestModbusRTU(t *testing.T) {
-	// Create a pair of virutal serial devices.
+	if _, err := exec.LookPath("socat"); err != nil {
+		t.Skip("socat not found in PATH")
+	}
+
+	ttyDir := t.TempDir()
+	serverTTY := filepath.Join(ttyDir, "ttyFOO")
+	clientTTY := filepath.Join(ttyDir, "ttyBAR")
+
+	// Create a pair of virtual serial devices.
 	cmd := exec.Command("socat",
-		"pty,raw,echo=0,link=ttyFOO",
-		"pty,raw,echo=0,link=ttyBAR")
+		"pty,raw,echo=0,link="+serverTTY,
+		"pty,raw,echo=0,link="+clientTTY)
 	err := cmd.Start()
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+		_ = cmd.Wait()
+	})
 
-	defer cmd.Wait()
-	defer cmd.Process.Kill()
-
-	// Allow the virutal serial devices to be created.
-	time.Sleep(10 * time.Millisecond)
+	// Wait for the virtual serial devices to be created.
+	require.Eventually(t, func() bool {
+		_, fooErr := os.Stat(serverTTY)
+		_, barErr := os.Stat(clientTTY)
+		return fooErr == nil && barErr == nil
+	}, time.Second, 10*time.Millisecond)
 
 	// Server
 	s := NewServer()
 	err = s.ListenRTU(&serial.Config{
-		Address:  "ttyFOO",
+		Address:  serverTTY,
 		BaudRate: 115200,
 		DataBits: 8,
 		StopBits: 1,
@@ -41,14 +58,14 @@ func TestModbusRTU(t *testing.T) {
 		Timeout:  10 * time.Second})
 	require.NoError(t, err)
 
-	defer s.Shutdown()
+	t.Cleanup(s.Shutdown)
 	go s.Start()
 
-	// Allow the server to start and to avoid a connection refused on the client
+	// Allow the server to start and avoid connection refused on the client.
 	time.Sleep(1 * time.Millisecond)
 
 	// Client
-	handler := modbus.NewRTUClientHandler("ttyBAR")
+	handler := modbus.NewRTUClientHandler(clientTTY)
 	handler.BaudRate = 115200
 	handler.DataBits = 8
 	handler.Parity = "N"
@@ -59,7 +76,7 @@ func TestModbusRTU(t *testing.T) {
 	err = handler.Connect()
 	require.NoError(t, err)
 
-	defer handler.Close()
+	t.Cleanup(func() { _ = handler.Close() })
 	client := modbus.NewClient(handler)
 
 	// Coils
@@ -69,7 +86,5 @@ func TestModbusRTU(t *testing.T) {
 	results, err := client.ReadCoils(100, 16)
 	require.NoError(t, err)
 
-	expect := []byte{255, 1}
-	got := results
-	assert.EqualValues(t, expect, got)
+	assert.EqualValues(t, []byte{255, 1}, results)
 }
